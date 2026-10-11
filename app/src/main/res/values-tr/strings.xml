@@ -612,10 +612,10 @@
     <string name="settings_file_size_binary_title">İkili boyut birimleri</string>
     <string name="settings_file_size_binary_summary">Boyutları KB, MB, GB yerine KiB, MiB, GiB (1024 tabanlı) olarak göster.</string>
     <string name="settings_search_return_title">Arama</string>
-    <string name="settings_search_return_previous_title">Açılan klasörden sonuçlara dön</string>
-    <string name="settings_search_return_previous_summary">Arama sonucundan bir klasör açtıktan sonra geri gidince üst klasör yerine arama sonuçlarına döner.</string>
-    <string name="settings_search_return_next_title">Daha derine inerken sonuçları koru</string>
-    <string name="settings_search_return_next_summary">Açılan klasörün alt klasörlerine girdiğinde de sonuçlara dönülebilir kalır.</string>
+    <string name="settings_search_return_previous_title">Önceki dizinler</string>
+    <string name="settings_search_return_previous_summary">Aramadan açılan klasörün üst (önceki) dizinlerine geçsen bile geri tuşu arama sonuçlarına döner.</string>
+    <string name="settings_search_return_next_title">Sonraki dizinler</string>
+    <string name="settings_search_return_next_summary">Aramadan açılan klasörün alt (sonraki) dizinlerine inince geri tuşu doğrudan arama sonuçlarına döner.</string>
     <string name="settings_search_return_max_changes_title">Sonuçların silineceği klasör değişikliği</string>
     <string name="settings_search_return_max_changes_summary">Bu kadar klasör değişikliğinden (ileri ya da geri) sonra geri gitmek artık arama sonuçlarına dönmez.</string>
     <string name="settings_file_list_animation_title">Dosya listesi animasyonu</string>

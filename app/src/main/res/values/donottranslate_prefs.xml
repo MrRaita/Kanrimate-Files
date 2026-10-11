@@ -62,7 +62,7 @@
     <string name="pref_key_search_return_previous">key_search_return_previous</string>
     <bool name="pref_default_value_search_return_previous">true</bool>
     <string name="pref_key_search_return_next">key_search_return_next</string>
-    <bool name="pref_default_value_search_return_next">false</bool>
+    <bool name="pref_default_value_search_return_next">true</bool>
     <string name="pref_key_search_return_max_changes">key_search_return_max_changes</string>
     <integer name="pref_default_value_search_return_max_changes">10</integer>
     <string name="pref_key_file_size_binary">key_file_size_binary</string>

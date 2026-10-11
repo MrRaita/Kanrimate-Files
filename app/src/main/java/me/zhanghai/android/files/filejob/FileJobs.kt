@@ -66,6 +66,7 @@ import me.zhanghai.android.files.provider.common.getFileStore
 import me.zhanghai.android.files.provider.common.getMode
 import me.zhanghai.android.files.provider.common.getPath
 import me.zhanghai.android.files.provider.common.isDirectory
+import me.zhanghai.android.files.provider.common.isSameFile
 import me.zhanghai.android.files.provider.common.moveTo
 import me.zhanghai.android.files.provider.common.newByteChannel
 import me.zhanghai.android.files.provider.common.newDirectoryStream
@@ -1719,6 +1720,11 @@ class SaveFileJob(private val source: Path, private val target: Path) : FileJob(
 
 @Throws(IOException::class)
 private fun FileJob.save(source: Path, target: Path) {
+    // Saving a file onto itself would replace (delete) the source before reading it.
+    if (source == target || (try { source.isSameFile(target) } catch (e: IOException) { false })) {
+        showToast(R.string.save_as_error)
+        return
+    }
     val scanInfo = scan(source, R.plurals.file_job_copy_scan_notification_title_format)
     val targetParent = target.parent
     val transferInfo = TransferInfo(scanInfo, targetParent)

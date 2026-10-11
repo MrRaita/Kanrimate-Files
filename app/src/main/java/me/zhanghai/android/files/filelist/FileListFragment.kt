@@ -595,10 +595,11 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
                 searchReturn.changes++
             }
             searchReturn.lastPath = path
-            val isInsideEnteredPath = path == searchReturn.enteredPath ||
-                (Settings.SEARCH_RETURN_NEXT.valueCompat &&
-                    path.startsWith(searchReturn.enteredPath))
-            if (!isInsideEnteredPath ||
+            val entered = searchReturn.enteredPath
+            val isKept = path == entered ||
+                (Settings.SEARCH_RETURN_NEXT.valueCompat && path.startsWith(entered)) ||
+                (Settings.SEARCH_RETURN_PREVIOUS.valueCompat && entered.startsWith(path))
+            if (!isKept ||
                 searchReturn.changes > Settings.SEARCH_RETURN_MAX_CHANGES.valueCompat) {
                 viewModel.searchReturn = null
             }
@@ -793,10 +794,8 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
             return false
         }
         val searchReturn = viewModel.searchReturn ?: return false
+        // onCurrentPathChanged() already dropped the return point if we left the allowed area.
         viewModel.searchReturn = null
-        if (viewModel.currentPath != searchReturn.enteredPath) {
-            return false
-        }
         val state = layoutManager.onSaveInstanceState()
         viewModel.navigateTo(state!!, searchReturn.searchRoot)
         viewModel.searchViewQuery = searchReturn.query

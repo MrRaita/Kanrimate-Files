@@ -860,10 +860,10 @@
     <string name="settings_file_size_binary_title">Binary size units</string>
     <string name="settings_file_size_binary_summary">Show sizes as KiB, MiB, GiB (1024-based) instead of KB, MB, GB.</string>
     <string name="settings_search_return_title">Search</string>
-    <string name="settings_search_return_previous_title">Return to results from the opened folder</string>
-    <string name="settings_search_return_previous_summary">After opening a folder from search results, going back returns to the results instead of the parent folder.</string>
-    <string name="settings_search_return_next_title">Keep results while browsing deeper</string>
-    <string name="settings_search_return_next_summary">Also keep the results available when you go into subfolders of the opened folder.</string>
+    <string name="settings_search_return_previous_title">Previous folders</string>
+    <string name="settings_search_return_previous_summary">If you go up to a parent (previous) folder of the one opened from search, Back still returns to the search results.</string>
+    <string name="settings_search_return_next_title">Next folders</string>
+    <string name="settings_search_return_next_summary">If you go deeper into subfolders (next folders) of the one opened from search, Back returns straight to the search results.</string>
     <string name="settings_search_return_max_changes_title">Folder changes before results are dropped</string>
     <string name="settings_search_return_max_changes_summary">After this many folder changes (forward or back), going back no longer returns to the search results.</string>
     <string name="settings_file_name_ellipsize_title">Display long file name</string>

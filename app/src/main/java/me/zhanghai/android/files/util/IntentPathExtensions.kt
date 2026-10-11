@@ -11,6 +11,7 @@ import android.net.Uri
 import java8.nio.file.Path
 import java8.nio.file.Paths
 import me.zhanghai.android.files.BuildConfig
+import me.zhanghai.android.files.file.fileProviderPath
 import me.zhanghai.android.files.compat.DocumentsContractCompat
 import me.zhanghai.android.files.storage.createOrLog
 import java.io.Serializable
@@ -62,7 +63,15 @@ val Intent.saveAsPaths: List<Path>
 private fun Uri.toPathOrNull(): Path? =
     when (scheme) {
         ContentResolver.SCHEME_FILE, null -> path?.takeIfNotEmpty()?.let { Paths.get(it) }
-        ContentResolver.SCHEME_CONTENT -> {
+        ContentResolver.SCHEME_CONTENT -> if (authority == BuildConfig.FILE_PROVIDIER_AUTHORITY) {
+            // Our own FileProvider wraps the real path in a nested, encoded URI. Unwrap it instead
+            // of treating the content URI itself as a path.
+            try {
+                fileProviderPath
+            } catch (e: IllegalArgumentException) {
+                null
+            }
+        } else {
             val uri = URI::class.createOrLog(toString())
                 // Some people use Uri.parse() without encoding their path. Let's try saving
                 // them by calling the other URI constructor that encodes everything.
