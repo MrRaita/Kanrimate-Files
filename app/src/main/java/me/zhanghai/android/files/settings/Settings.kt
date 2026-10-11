@@ -45,6 +45,39 @@ object Settings {
             R.bool.pref_default_value_file_list_persistent_drawer_open
         )
 
+    val SEARCH_RETURN_PREVIOUS: SettingLiveData<Boolean> =
+        BooleanSettingLiveData(
+            R.string.pref_key_search_return_previous,
+            R.bool.pref_default_value_search_return_previous
+        )
+
+    val SEARCH_RETURN_NEXT: SettingLiveData<Boolean> =
+        BooleanSettingLiveData(
+            R.string.pref_key_search_return_next, R.bool.pref_default_value_search_return_next
+        )
+
+    val SEARCH_RETURN_MAX_CHANGES: SettingLiveData<Int> =
+        IntegerSettingLiveData(
+            R.string.pref_key_search_return_max_changes,
+            R.integer.pref_default_value_search_return_max_changes
+        )
+
+    val FILE_SIZE_BINARY: SettingLiveData<Boolean> =
+        BooleanSettingLiveData(
+            R.string.pref_key_file_size_binary, R.bool.pref_default_value_file_size_binary
+        )
+
+    val FILE_LIST_GRID_COLUMNS: SettingLiveData<String> =
+        StringSettingLiveData(
+            R.string.pref_key_file_list_grid_columns,
+            R.string.pref_default_value_file_list_grid_columns
+        )
+
+    val FILE_LIST_DENSITY: SettingLiveData<String> =
+        StringSettingLiveData(
+            R.string.pref_key_file_list_density, R.string.pref_default_value_file_list_density
+        )
+
     val FILE_LIST_SHOW_HIDDEN_FILES: SettingLiveData<Boolean> =
         BooleanSettingLiveData(
             R.string.pref_key_file_list_show_hidden_files,

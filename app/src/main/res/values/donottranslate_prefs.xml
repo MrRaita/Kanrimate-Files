@@ -59,6 +59,31 @@
         <item>2</item>
         <item>3</item>
     </string-array>
+    <string name="pref_key_search_return_previous">key_search_return_previous</string>
+    <bool name="pref_default_value_search_return_previous">true</bool>
+    <string name="pref_key_search_return_next">key_search_return_next</string>
+    <bool name="pref_default_value_search_return_next">false</bool>
+    <string name="pref_key_search_return_max_changes">key_search_return_max_changes</string>
+    <integer name="pref_default_value_search_return_max_changes">10</integer>
+    <string name="pref_key_file_size_binary">key_file_size_binary</string>
+    <bool name="pref_default_value_file_size_binary">false</bool>
+    <string name="pref_key_file_list_grid_columns">key_file_list_grid_columns</string>
+    <string name="pref_default_value_file_list_grid_columns">0</string>
+    <string-array name="pref_entry_values_file_list_grid_columns">
+        <item>0</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        <item>6</item>
+    </string-array>
+    <string name="pref_key_file_list_density">key_file_list_density</string>
+    <string name="pref_default_value_file_list_density">0</string>
+    <string-array name="pref_entry_values_file_list_density">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+    </string-array>
     <string name="pref_key_standard_directory_settings">key_standard_directories</string>
     <string name="pref_key_bookmark_directories">key_bookmark_directories</string>
     <string name="pref_key_root_strategy">key_root_strategy</string>

@@ -240,6 +240,7 @@ class FileListAdapter(
         menu.findItem(R.id.action_copy).isVisible = !hasPickOptions
         val checked = file in selectedFiles
         holder.itemLayout.isChecked = checked
+        bindListDensity(holder)
         holder.nameText.apply {
             if (isSingleLineCompat) {
                 val nameEllipsize = nameEllipsize
@@ -343,6 +344,9 @@ class FileListAdapter(
             val descriptionSeparator = context.getString(R.string.file_item_description_separator)
             listOf(lastModificationTime, size).joinToString(descriptionSeparator)
         }
+        if (viewType == FileViewType.LIST && Settings.FILE_LIST_DENSITY.valueCompat == "2") {
+            holder.descriptionText?.visibility = View.GONE
+        }
         val isArchivePath = path.isArchivePath
         menu.findItem(R.id.action_copy)
             .setTitle(if (isArchivePath) R.string.file_item_action_extract else R.string.copy)
@@ -402,6 +406,31 @@ class FileListAdapter(
                     true
                 }
                 else -> false
+            }
+        }
+    }
+
+    /** Applies the "list density" setting to a list row (grid rows are left alone). */
+    private fun bindListDensity(holder: ViewHolder) {
+        if (viewType != FileViewType.LIST) {
+            return
+        }
+        val density = Settings.FILE_LIST_DENSITY.valueCompat
+        val heightRes = when (density) {
+            "1" -> R.dimen.two_line_list_item_height_compact
+            "2" -> R.dimen.two_line_list_item_height_very_compact
+            else -> R.dimen.two_line_list_item_height
+        }
+        val itemLayout = holder.itemLayout
+        val height = itemLayout.resources.getDimensionPixelSize(heightRes)
+        val layoutParams = itemLayout.layoutParams
+        if (layoutParams != null && layoutParams.height != height) {
+            layoutParams.height = height
+            itemLayout.layoutParams = layoutParams
+        }
+        holder.descriptionText?.let {
+            if (density == "2") {
+                it.visibility = View.GONE
             }
         }
     }

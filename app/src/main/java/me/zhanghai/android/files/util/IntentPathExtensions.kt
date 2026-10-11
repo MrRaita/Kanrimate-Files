@@ -48,6 +48,17 @@ val Intent.saveAsPath: Path?
         return uri?.toPathOrNull()
     }
 
+/** The files shared with [Intent.ACTION_SEND_MULTIPLE], for those that can be turned into paths. */
+val Intent.saveAsPaths: List<Path>
+    get() {
+        if (action != Intent.ACTION_SEND_MULTIPLE) {
+            return emptyList()
+        }
+        @Suppress("DEPRECATION")
+        val uris = getParcelableArrayListExtra<Uri>(Intent.EXTRA_STREAM) ?: return emptyList()
+        return uris.mapNotNull { it.toPathOrNull() }
+    }
+
 private fun Uri.toPathOrNull(): Path? =
     when (scheme) {
         ContentResolver.SCHEME_FILE, null -> path?.takeIfNotEmpty()?.let { Paths.get(it) }

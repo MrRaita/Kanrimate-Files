@@ -593,6 +593,31 @@
         <item>Pil tasarrufuna göre</item>
     </string-array>
     <string name="settings_black_night_mode">Siyah gece modu</string>
+    <string name="terminal_termux_setup_required">Termux\'u buradan açmak için sistem ayarlarında (Uygulama bilgisi → İzinler) bu uygulamaya “Termux ortamında komut çalıştır” iznini verin ve ~/.termux/termux.properties dosyasına allow-external-apps = true yazın.</string>
+    <string name="settings_file_list_density_title">Liste yoğunluğu</string>
+    <string-array name="settings_file_list_density_entries">
+        <item>Rahat</item>
+        <item>Sıkışık</item>
+        <item>Çok sıkışık (yalnızca adlar)</item>
+    </string-array>
+    <string name="settings_file_list_grid_columns_title">Izgara sütunları</string>
+    <string-array name="settings_file_list_grid_columns_entries">
+        <item>Otomatik</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        <item>6</item>
+    </string-array>
+    <string name="settings_file_size_binary_title">İkili boyut birimleri</string>
+    <string name="settings_file_size_binary_summary">Boyutları KB, MB, GB yerine KiB, MiB, GiB (1024 tabanlı) olarak göster.</string>
+    <string name="settings_search_return_title">Arama</string>
+    <string name="settings_search_return_previous_title">Açılan klasörden sonuçlara dön</string>
+    <string name="settings_search_return_previous_summary">Arama sonucundan bir klasör açtıktan sonra geri gidince üst klasör yerine arama sonuçlarına döner.</string>
+    <string name="settings_search_return_next_title">Daha derine inerken sonuçları koru</string>
+    <string name="settings_search_return_next_summary">Açılan klasörün alt klasörlerine girdiğinde de sonuçlara dönülebilir kalır.</string>
+    <string name="settings_search_return_max_changes_title">Sonuçların silineceği klasör değişikliği</string>
+    <string name="settings_search_return_max_changes_summary">Bu kadar klasör değişikliğinden (ileri ya da geri) sonra geri gitmek artık arama sonuçlarına dönmez.</string>
     <string name="settings_file_list_animation_title">Dosya listesi animasyonu</string>
     <string name="settings_file_name_ellipsize_title">Uzun dosya adı görüntüle</string>
     <string-array name="settings_file_name_ellipsize_entries">

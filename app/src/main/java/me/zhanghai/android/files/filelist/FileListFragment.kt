@@ -80,6 +80,9 @@ import me.zhanghai.android.files.navigation.BookmarkDirectory
 import me.zhanghai.android.files.navigation.NavigationFragment
 import me.zhanghai.android.files.navigation.NavigationRootMapLiveData
 import me.zhanghai.android.files.provider.archive.createArchiveRootPath
+import me.zhanghai.android.files.provider.common.exists
+import java8.nio.file.NoSuchFileException
+import me.zhanghai.android.files.util.AppExecutors
 import me.zhanghai.android.files.provider.archive.isArchivePath
 import me.zhanghai.android.files.provider.linux.isLinuxPath
 import me.zhanghai.android.files.settings.SelectionActions
@@ -353,6 +356,9 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
             binding.breadcrumbLayout.setData(it)
         }
         viewModel.viewTypeLiveData.observe(viewLifecycleOwner) { onViewTypeChanged(it) }
+        Settings.FILE_LIST_GRID_COLUMNS.observe(viewLifecycleOwner) { updateSpanCount() }
+        Settings.FILE_LIST_DENSITY.observe(viewLifecycleOwner) { adapter.notifyDataSetChanged() }
+        Settings.FILE_SIZE_BINARY.observe(viewLifecycleOwner) { adapter.notifyDataSetChanged() }
         // Live data only calls observeForever() on its sources when it is active, so we have to
         // make view type live data active first (so that it can load its initial value) before we
         // register another observer that needs to get the view type.
@@ -583,8 +589,19 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
     }
 
     private fun onCurrentPathChanged(path: Path) {
-        if (viewModel.searchReturn?.enteredPath != path) {
-            viewModel.searchReturn = null
+        viewModel.searchReturn?.let { searchReturn ->
+            val lastPath = searchReturn.lastPath
+            if (lastPath != null && lastPath != path) {
+                searchReturn.changes++
+            }
+            searchReturn.lastPath = path
+            val isInsideEnteredPath = path == searchReturn.enteredPath ||
+                (Settings.SEARCH_RETURN_NEXT.valueCompat &&
+                    path.startsWith(searchReturn.enteredPath))
+            if (!isInsideEnteredPath ||
+                searchReturn.changes > Settings.SEARCH_RETURN_MAX_CHANGES.valueCompat) {
+                viewModel.searchReturn = null
+            }
         }
         updateOverlayToolbar()
         updateBottomToolbar()
@@ -592,6 +609,43 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
 
     private fun onSearchViewExpandedChanged(expanded: Boolean) {
         updateViewSortMenuItems()
+    }
+
+    private var isNavigatingToExistingParent = false
+
+    private fun navigateToExistingParent() {
+        if (isNavigatingToExistingParent) {
+            return
+        }
+        isNavigatingToExistingParent = true
+        val missingPath = viewModel.currentPath
+        AppExecutors.io.execute {
+            var parent = missingPath.parent
+            while (parent != null) {
+                val exists = try {
+                    parent.exists()
+                } catch (e: Exception) {
+                    false
+                }
+                if (exists) {
+                    break
+                }
+                parent = parent.parent
+            }
+            val target = parent
+            val activity = activity
+            activity?.runOnUiThread {
+                isNavigatingToExistingParent = false
+                if (!isAdded || viewModel.currentPath != missingPath) {
+                    return@runOnUiThread
+                }
+                if (target != null) {
+                    viewModel.resetTo(target)
+                } else {
+                    navigateToDefaultRoot()
+                }
+            }
+        }
     }
 
     private fun onFileListChanged(stateful: Stateful<List<FileItem>>) {
@@ -607,7 +661,11 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         binding.progress.fadeToVisibilityUnsafe(stateful is Loading && !(hasFiles || isSearching))
         binding.errorText.fadeToVisibilityUnsafe(stateful is Failure && !hasFiles)
         val throwable = (stateful as? Failure)?.throwable
-        if (throwable != null) {
+        if (throwable is NoSuchFileException && !isSearching) {
+            // The folder we are in was deleted (or never existed). Instead of showing a raw
+            // exception, go to the closest parent that still exists.
+            navigateToExistingParent()
+        } else if (throwable != null) {
             throwable.printStackTrace()
             val error = throwable.toString()
             if (hasFiles) {
@@ -671,7 +729,8 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
                     persistentDrawerLayout.isDrawerOpen(GravityCompat.START)) {
                     widthDp -= getDimensionDp(R.dimen.navigation_max_width).roundToInt()
                 }
-                (widthDp / 180).coerceAtLeast(2)
+                val fixedColumns = Settings.FILE_LIST_GRID_COLUMNS.valueCompat.toIntOrNull() ?: 0
+                if (fixedColumns > 0) fixedColumns else (widthDp / 180).coerceAtLeast(2)
             }
         }
     }
@@ -721,12 +780,18 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         viewModel.navigateUp()
     }
 
+    private fun isSearchReturnEnabled(): Boolean =
+        Settings.SEARCH_RETURN_PREVIOUS.valueCompat || Settings.SEARCH_RETURN_NEXT.valueCompat
+
     /**
      * If the current folder was opened from search results, goes back to those results.
      *
      * @return whether we went back to the search results
      */
     private fun returnToSearch(): Boolean {
+        if (!isSearchReturnEnabled()) {
+            return false
+        }
         val searchReturn = viewModel.searchReturn ?: return false
         viewModel.searchReturn = null
         if (viewModel.currentPath != searchReturn.enteredPath) {
@@ -800,7 +865,7 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
 
     override fun navigateTo(path: Path) {
         val searchState = viewModel.searchState
-        if (searchState.isSearching) {
+        if (searchState.isSearching && isSearchReturnEnabled()) {
             viewModel.searchReturn = SearchReturn(viewModel.currentPath, searchState.query, path)
         }
         collapseSearchView()

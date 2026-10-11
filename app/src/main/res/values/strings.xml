@@ -841,6 +841,31 @@
     </string-array>
     <string name="settings_black_night_mode">Black night mode</string>
     <string name="settings_file_list_animation_title">File list animation</string>
+    <string name="terminal_termux_setup_required">To open Termux from here, allow “Run commands in Termux environment” for this app in system settings (App info → Permissions) and set allow-external-apps = true in ~/.termux/termux.properties.</string>
+    <string name="settings_file_list_density_title">List density</string>
+    <string-array name="settings_file_list_density_entries">
+        <item>Comfortable</item>
+        <item>Compact</item>
+        <item>Very compact (names only)</item>
+    </string-array>
+    <string name="settings_file_list_grid_columns_title">Grid columns</string>
+    <string-array name="settings_file_list_grid_columns_entries">
+        <item>Automatic</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+        <item>6</item>
+    </string-array>
+    <string name="settings_file_size_binary_title">Binary size units</string>
+    <string name="settings_file_size_binary_summary">Show sizes as KiB, MiB, GiB (1024-based) instead of KB, MB, GB.</string>
+    <string name="settings_search_return_title">Search</string>
+    <string name="settings_search_return_previous_title">Return to results from the opened folder</string>
+    <string name="settings_search_return_previous_summary">After opening a folder from search results, going back returns to the results instead of the parent folder.</string>
+    <string name="settings_search_return_next_title">Keep results while browsing deeper</string>
+    <string name="settings_search_return_next_summary">Also keep the results available when you go into subfolders of the opened folder.</string>
+    <string name="settings_search_return_max_changes_title">Folder changes before results are dropped</string>
+    <string name="settings_search_return_max_changes_summary">After this many folder changes (forward or back), going back no longer returns to the search results.</string>
     <string name="settings_file_name_ellipsize_title">Display long file name</string>
     <string-array name="settings_file_name_ellipsize_entries">
         <item>Ellipsize the beginning</item>

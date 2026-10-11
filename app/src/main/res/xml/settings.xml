@@ -53,6 +53,28 @@
             android:entries="@array/settings_file_name_ellipsize_entries"
             android:entryValues="@array/pref_entry_values_file_name_ellipsize"
             app:useSimpleSummaryProvider="true" />
+
+        <rikka.preference.SimpleMenuPreference
+            android:key="@string/pref_key_file_list_density"
+            android:title="@string/settings_file_list_density_title"
+            android:defaultValue="@string/pref_default_value_file_list_density"
+            android:entries="@array/settings_file_list_density_entries"
+            android:entryValues="@array/pref_entry_values_file_list_density"
+            app:useSimpleSummaryProvider="true" />
+
+        <rikka.preference.SimpleMenuPreference
+            android:key="@string/pref_key_file_list_grid_columns"
+            android:title="@string/settings_file_list_grid_columns_title"
+            android:defaultValue="@string/pref_default_value_file_list_grid_columns"
+            android:entries="@array/settings_file_list_grid_columns_entries"
+            android:entryValues="@array/pref_entry_values_file_list_grid_columns"
+            app:useSimpleSummaryProvider="true" />
+
+        <SwitchPreferenceCompat
+            android:key="@string/pref_key_file_size_binary"
+            android:title="@string/settings_file_size_binary_title"
+            android:summary="@string/settings_file_size_binary_summary"
+            android:defaultValue="@bool/pref_default_value_file_size_binary" />
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/settings_behavior_title">
@@ -119,5 +141,29 @@
             android:key="@string/pref_key_read_remote_files_for_thumbnail"
             android:title="@string/settings_read_remote_files_for_thumbnail_title"
             android:defaultValue="@bool/pref_default_value_read_remote_files_for_thumbnail" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/settings_search_return_title">
+
+        <SwitchPreferenceCompat
+            android:key="@string/pref_key_search_return_previous"
+            android:title="@string/settings_search_return_previous_title"
+            android:summary="@string/settings_search_return_previous_summary"
+            android:defaultValue="@bool/pref_default_value_search_return_previous" />
+
+        <SwitchPreferenceCompat
+            android:key="@string/pref_key_search_return_next"
+            android:title="@string/settings_search_return_next_title"
+            android:summary="@string/settings_search_return_next_summary"
+            android:defaultValue="@bool/pref_default_value_search_return_next" />
+
+        <SeekBarPreference
+            android:key="@string/pref_key_search_return_max_changes"
+            android:title="@string/settings_search_return_max_changes_title"
+            android:summary="@string/settings_search_return_max_changes_summary"
+            android:defaultValue="@integer/pref_default_value_search_return_max_changes"
+            android:max="10"
+            app:min="1"
+            app:showSeekBarValue="true" />
     </PreferenceCategory>
 </PreferenceScreen>
