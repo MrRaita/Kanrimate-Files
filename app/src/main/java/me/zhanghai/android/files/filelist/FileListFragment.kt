@@ -267,7 +267,9 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         addOnBackPressedCallback(
             object : OnBackPressedCallback(false) {
                 override fun handleOnBackPressed() {
-                    viewModel.navigateUp()
+                    if (!returnToSearch()) {
+                        viewModel.navigateUp()
+                    }
                 }
             }
                 .also { callback ->
@@ -581,6 +583,9 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
     }
 
     private fun onCurrentPathChanged(path: Path) {
+        if (viewModel.searchReturn?.enteredPath != path) {
+            viewModel.searchReturn = null
+        }
         updateOverlayToolbar()
         updateBottomToolbar()
     }
@@ -709,8 +714,34 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
     }
 
     private fun navigateUp() {
+        if (returnToSearch()) {
+            return
+        }
         collapseSearchView()
         viewModel.navigateUp()
+    }
+
+    /**
+     * If the current folder was opened from search results, goes back to those results.
+     *
+     * @return whether we went back to the search results
+     */
+    private fun returnToSearch(): Boolean {
+        val searchReturn = viewModel.searchReturn ?: return false
+        viewModel.searchReturn = null
+        if (viewModel.currentPath != searchReturn.enteredPath) {
+            return false
+        }
+        val state = layoutManager.onSaveInstanceState()
+        viewModel.navigateTo(state!!, searchReturn.searchRoot)
+        viewModel.searchViewQuery = searchReturn.query
+        viewModel.isSearchViewExpanded = true
+        viewModel.search(searchReturn.query)
+        if (this::menuBinding.isInitialized) {
+            menuBinding.searchItem.expandActionView()
+            (menuBinding.searchItem.actionView as? SearchView)?.setQuery(searchReturn.query, false)
+        }
+        return true
     }
 
     private fun showNavigateToPathDialog() {
@@ -768,6 +799,10 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
     }
 
     override fun navigateTo(path: Path) {
+        val searchState = viewModel.searchState
+        if (searchState.isSearching) {
+            viewModel.searchReturn = SearchReturn(viewModel.currentPath, searchState.query, path)
+        }
         collapseSearchView()
         val state = layoutManager.onSaveInstanceState()
         viewModel.navigateTo(state!!, path)

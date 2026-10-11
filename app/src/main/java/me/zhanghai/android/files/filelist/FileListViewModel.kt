@@ -53,6 +53,12 @@ class FileListViewModel : ViewModel() {
         _searchStateLiveData.value = SearchState(true, query)
     }
 
+    /**
+     * Remembers that the current directory was opened from a search result list, so that going
+     * back can return to those results instead of the parent directory.
+     */
+    var searchReturn: SearchReturn? = null
+
     fun stopSearching() {
         val searchState = _searchStateLiveData.valueCompat
         if (!searchState.isSearching) {
