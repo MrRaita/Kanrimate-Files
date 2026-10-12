@@ -666,8 +666,7 @@ class ArchiveFileJob(
                 directory: Path,
                 attributes: BasicFileAttributes
             ): FileVisitResult {
-                val directoryInTarget =
-                    resolveInTarget(target, source.relativize(directory), isExtract)
+                val directoryInTarget = target.resolveForeign(source.relativize(directory))
                 archive(directory, writer, directoryInTarget, archiveFile, transferInfo)
                 throwIfInterrupted()
                 return FileVisitResult.CONTINUE
@@ -775,7 +774,8 @@ class CopyFileJob(private val sources: List<Path>, private val targetDirectory: 
                 directory: Path,
                 attributes: BasicFileAttributes
             ): FileVisitResult {
-                val directoryInTarget = target.resolveForeign(source.relativize(directory))
+                val directoryInTarget =
+                    resolveInTarget(target, source.relativize(directory), isExtract)
                 val copied = copy(
                     directory, directoryInTarget, isExtract, transferInfo, actionAllInfo
                 )
