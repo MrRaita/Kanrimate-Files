@@ -896,4 +896,5 @@
     <string name="settings_file_index_diagnostics_title">İndeks tanılama</string>
     <string name="settings_file_index_diagnostics_run">Testi çalıştır</string>
     <string name="settings_file_index_diagnostics_copy">Kopyala</string>
+    <string name="settings_file_index_diagnostics_synthetic">Sentetik test</string>
 </resources>

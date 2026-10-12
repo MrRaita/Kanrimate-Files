@@ -45,8 +45,8 @@ object IndexDiagnosticsDialog {
             .setTitle(R.string.settings_file_index_diagnostics_title)
             .setView(ScrollView(context).apply { addView(text) })
             .setPositiveButton(R.string.settings_file_index_diagnostics_run, null)
-            .setNeutralButton(R.string.settings_file_index_diagnostics_copy, null)
-            .setNegativeButton(android.R.string.cancel, null)
+            .setNeutralButton(R.string.settings_file_index_diagnostics_synthetic, null)
+            .setNegativeButton(R.string.settings_file_index_diagnostics_copy, null)
             .setOnDismissListener { IndexDiagnostics.cancelRequested = true }
             .create()
         dialog.show()
@@ -69,6 +69,27 @@ object IndexDiagnosticsDialog {
             }.start()
         }
         dialog.getButton(android.app.AlertDialog.BUTTON_NEUTRAL).setOnClickListener {
+            if (running) {
+                return@setOnClickListener
+            }
+            val sizes = intArrayOf(200_000, 1_000_000, 2_000_000)
+            MaterialAlertDialogBuilder(context)
+                .setTitle(R.string.settings_file_index_diagnostics_synthetic)
+                .setItems(arrayOf("200,000", "1,000,000", "2,000,000")) { _, which ->
+                    running = true
+                    Thread {
+                        try {
+                            IndexDiagnostics.runSyntheticBenchmark(sizes[which]) { append(it) }
+                        } catch (e: Throwable) {
+                            append("Failed: $e")
+                        } finally {
+                            running = false
+                        }
+                    }.start()
+                }
+                .show()
+        }
+        dialog.getButton(android.app.AlertDialog.BUTTON_NEGATIVE).setOnClickListener {
             clipboardManager.copyText(text.text, context)
         }
     }

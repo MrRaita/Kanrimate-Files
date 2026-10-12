@@ -1046,4 +1046,5 @@
     <string name="settings_file_index_diagnostics_title">Index diagnostics</string>
     <string name="settings_file_index_diagnostics_run">Run test</string>
     <string name="settings_file_index_diagnostics_copy">Copy</string>
+    <string name="settings_file_index_diagnostics_synthetic">Synthetic test</string>
 </resources>

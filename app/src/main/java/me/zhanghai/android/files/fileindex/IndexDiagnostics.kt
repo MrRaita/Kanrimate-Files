@@ -115,6 +115,54 @@ object IndexDiagnostics {
             return
         }
 
+        benchmarkDatabase(count, { paths[it] }, { folds[it] }, log)
+    }
+
+    /** Words for synthetic names, mixed English and Turkish like a real storage. */
+    private val WORDS = arrayOf(
+        "photo", "image", "report", "invoice", "music", "video", "backup", "chapter", "track",
+        "screenshot", "download", "document", "project", "notes", "cache", "thumbnail", "config",
+        "module", "update", "release", "fatura", "rapor", "belge", "resim", "muzik", "ders",
+        "odev", "sunum", "tablo", "yedek", "ayarlar", "indirilen", "kamera", "ekran", "dosya"
+    )
+    private val EXTENSIONS = arrayOf(".jpg", ".png", ".mp4", ".mp3", ".pdf", ".txt", ".zip", ".apk", ".json", "")
+
+    private fun mix(i: Int): Long {
+        var x = i.toLong() * -7046029254386353131L
+        x = x xor (x ushr 29)
+        x *= -0x40a7b892e31b1a47L
+        return x xor (x ushr 32)
+    }
+
+    private fun syntheticName(i: Int): String {
+        val h = mix(i)
+        val a = WORDS[(h and 0xFF).toInt() % WORDS.size]
+        val b = WORDS[((h ushr 8) and 0xFF).toInt() % WORDS.size]
+        val e = EXTENSIONS[((h ushr 16) and 0xFF).toInt() % EXTENSIONS.size]
+        return "${a}_${b}_$i$e"
+    }
+
+    private fun syntheticPath(i: Int): String {
+        val h = mix(i / 40)
+        val dir = WORDS[(h and 0xFF).toInt() % WORDS.size]
+        return "/storage/emulated/0/$dir/${i / 40}/${syntheticName(i)}"
+    }
+
+    /** Same measurements as the real test, on generated names, so large sizes can be tried. */
+    fun runSyntheticBenchmark(count: Int, log: (String) -> Unit) {
+        cancelRequested = false
+        log("Synthetic data: $count generated names")
+        benchmarkDatabase(
+            count, { syntheticPath(it) }, { FileIndex.fold(syntheticName(it)) }, log
+        )
+    }
+
+    private fun benchmarkDatabase(
+        count: Int,
+        pathAt: (Int) -> String,
+        foldAt: (Int) -> String,
+        log: (String) -> Unit
+    ) {
         val file = File.createTempFile("index_bench", ".db", application.cacheDir)
         val db = SQLiteDatabase.openOrCreateDatabase(file, null)
         try {
@@ -124,9 +172,12 @@ object IndexDiagnostics {
             try {
                 val statement = db.compileStatement("INSERT OR REPLACE INTO e(path, fold) VALUES(?, ?)")
                 for (i in 0 until count) {
+                    if (cancelRequested) {
+                        return
+                    }
                     statement.clearBindings()
-                    statement.bindString(1, paths[i])
-                    statement.bindString(2, folds[i])
+                    statement.bindString(1, pathAt(i))
+                    statement.bindString(2, foldAt(i))
                     statement.executeInsert()
                 }
                 db.setTransactionSuccessful()
@@ -136,7 +187,7 @@ object IndexDiagnostics {
             val likeInsertMillis = SystemClock.elapsedRealtime() - likeStart
             log("Plain table: insert $likeInsertMillis ms, file ${file.length() / 1024} KB")
 
-            val queries = pickQueries(folds)
+            val queries = pickQueries(count, foldAt)
             for (query in queries) {
                 if (cancelRequested) {
                     return
@@ -170,7 +221,7 @@ object IndexDiagnostics {
                     }
                     statement.clearBindings()
                     statement.bindLong(1, (i + 1).toLong())
-                    statement.bindString(2, trigrams(folds[i]))
+                    statement.bindString(2, trigrams(foldAt(i)))
                     statement.executeInsert()
                 }
                 db.setTransactionSuccessful()
@@ -206,12 +257,12 @@ object IndexDiagnostics {
         if (millis <= 0) count.toLong() else count * 1000L / millis
 
     /** Real substrings from the data so the queries actually match something. */
-    private fun pickQueries(folds: List<String>): List<String> {
+    private fun pickQueries(count: Int, foldAt: (Int) -> String): List<String> {
         val result = mutableListOf<String>()
-        val step = (folds.size / 4).coerceAtLeast(1)
+        val step = (count / 4).coerceAtLeast(1)
         var i = step / 2
-        while (i < folds.size && result.size < 3) {
-            val name = folds[i]
+        while (i < count && result.size < 3) {
+            val name = foldAt(i)
             if (name.length >= 6) {
                 result += name.substring(1, 4)
                 if (result.size < 3) {
