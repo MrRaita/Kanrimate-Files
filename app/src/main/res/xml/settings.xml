@@ -196,6 +196,10 @@
             android:dependency="@string/pref_key_file_index_enabled" />
 
         <Preference
+            android:key="@string/pref_key_file_index_diagnostics"
+            android:title="@string/settings_file_index_diagnostics_title" />
+
+        <Preference
             android:key="@string/pref_key_file_index_rebuild"
             android:title="@string/settings_file_index_rebuild_title"
             android:dependency="@string/pref_key_file_index_enabled" />

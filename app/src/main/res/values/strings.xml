@@ -1043,4 +1043,7 @@
     <string name="file_index_choice_index_and_search_description">Searches normally now and starts indexing at the same time, so the index catches up with new folders and files.</string>
     <string name="file_index_choice_search_only">Search without indexing</string>
     <string name="file_index_choice_search_only_description">Only searches normally. The index is left as it is.</string>
+    <string name="settings_file_index_diagnostics_title">Index diagnostics</string>
+    <string name="settings_file_index_diagnostics_run">Run test</string>
+    <string name="settings_file_index_diagnostics_copy">Copy</string>
 </resources>

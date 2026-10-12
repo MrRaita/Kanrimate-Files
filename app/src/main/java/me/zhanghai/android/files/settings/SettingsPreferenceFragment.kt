@@ -12,6 +12,7 @@ import androidx.preference.Preference
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import me.zhanghai.android.files.fileindex.FileIndex
 import me.zhanghai.android.files.fileindex.FileIndexPrompt
+import me.zhanghai.android.files.fileindex.IndexDiagnosticsDialog
 import me.zhanghai.android.files.filelist.FileListActivity
 import me.zhanghai.android.files.provider.linux.isLinuxPath
 import me.zhanghai.android.files.util.AppExecutors
@@ -79,6 +80,12 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
                 FileIndex.cancelScan()
                 AppExecutors.io.execute { FileIndex.clear() }
             }
+            true
+        }
+        preferenceScreen.findPreference<Preference>(
+            getString(R.string.pref_key_file_index_diagnostics)
+        )!!.setOnPreferenceClickListener {
+            IndexDiagnosticsDialog.show(requireContext())
             true
         }
         updateFileIndexSummary()

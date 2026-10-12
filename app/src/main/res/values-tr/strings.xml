@@ -893,4 +893,7 @@
     <string name="file_index_choice_index_and_search_description">Şimdi normal modda arar ve aynı anda indekslemeyi başlatır, böylece indeks yeni klasör ve dosyalara yetişir.</string>
     <string name="file_index_choice_search_only">İndekslemeden ara</string>
     <string name="file_index_choice_search_only_description">Yalnızca normal modda arar. İndeks olduğu gibi kalır.</string>
+    <string name="settings_file_index_diagnostics_title">İndeks tanılama</string>
+    <string name="settings_file_index_diagnostics_run">Testi çalıştır</string>
+    <string name="settings_file_index_diagnostics_copy">Kopyala</string>
 </resources>
