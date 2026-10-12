@@ -329,30 +329,39 @@ object FileIndex {
         val root = normalizeRoot(searchRoot)
         try {
             val db = database()
-            var covered = false
+            val indexedRoots = mutableListOf<String>()
             db.rawQuery("SELECT path FROM roots WHERE scanned_at > 0", null).use {
                 while (it.moveToNext()) {
-                    val indexedRoot = it.getString(0)
-                    if (root == indexedRoot || root.startsWith(indexedRoot.trimEnd('/') + "/")) {
-                        covered = true
-                    }
+                    indexedRoots += it.getString(0)
                 }
             }
-            if (!covered) {
+            val prefix = root.trimEnd('/')
+            val covered = indexedRoots.any {
+                root == it || root.startsWith(it.trimEnd('/') + "/")
+            }
+            // Folders to read from the index: just the search folder if it is fully covered,
+            // otherwise (only if the user allowed it) the indexed folders below it.
+            val searchFolders = when {
+                covered -> listOf(prefix)
+                Settings.FILE_INDEX_PARTIAL_SEARCH.valueCompat ->
+                    indexedRoots.filter { it.startsWith("$prefix/") }.map { it.trimEnd('/') }
+                else -> emptyList()
+            }
+            if (searchFolders.isEmpty()) {
                 return null
             }
-            val prefix = root.trimEnd('/')
-            // '0' is the character right after '/', so this is exactly "paths below root".
-            val lower = "$prefix/"
-            val upper = "${prefix}0"
             val results = mutableListOf<String>()
-            db.rawQuery(
-                "SELECT path FROM entries WHERE path > ? AND path < ? " +
-                    "AND fold LIKE ? ESCAPE '\\' ORDER BY fold LIMIT $MAX_RESULTS",
-                arrayOf(lower, upper, "%" + escapeLike(fold(query)) + "%")
-            ).use {
-                while (it.moveToNext()) {
-                    results += it.getString(0)
+            val likeArg = "%" + escapeLike(fold(query)) + "%"
+            for (folder in searchFolders) {
+                // '0' is the character right after '/', so this is exactly "paths below folder".
+                db.rawQuery(
+                    "SELECT path FROM entries WHERE path > ? AND path < ? " +
+                        "AND fold LIKE ? ESCAPE '\\' ORDER BY fold LIMIT $MAX_RESULTS",
+                    arrayOf("$folder/", "${folder}0", likeArg)
+                ).use {
+                    while (it.moveToNext() && results.size < MAX_RESULTS) {
+                        results += it.getString(0)
+                    }
                 }
             }
             return results

@@ -1021,8 +1021,8 @@
     <string name="settings_file_index_rebuild_title">Rebuild index now</string>
     <string name="settings_file_index_rebuild_started">Indexing started in the background.</string>
     <string name="settings_file_index_add_folder">Add folder</string>
-    <string name="file_index_prompt_title">Index these folders for instant search?</string>
-    <string name="file_index_prompt_enable">Enable</string>
+    <string name="file_index_prompt_title">Set up instant search?</string>
+    <string name="file_index_prompt_enable">Index selected</string>
     <string name="file_index_prompt_not_now">Not now</string>
     <string name="notification_channel_file_index_name">Search indexing</string>
     <string name="notification_channel_file_index_description">Progress of building the file name index</string>
@@ -1030,4 +1030,10 @@
     <string name="file_index_notification_progress_format">%1$d files indexed so far</string>
     <string name="file_index_notification_done_title">Search index ready</string>
     <string name="file_index_notification_done_format">%1$d files and folders indexed</string>
+    <string name="file_index_prompt_message">Index file and folder names (never contents) so searches are instant. You can index everything on the internal storage, or choose the folders yourself.</string>
+    <string name="file_index_prompt_all">Index all folders</string>
+    <string name="file_index_prompt_choose">I\'ll choose</string>
+    <string name="file_index_prompt_choose_title">Folders to index</string>
+    <string name="settings_file_index_partial_search_title">Search from parent folders</string>
+    <string name="settings_file_index_partial_search_summary">When you search in a folder that contains your indexed folders but is not fully indexed, use only the indexed folders for instant results. Results can be incomplete. Off: use the slower, complete search.</string>
 </resources>

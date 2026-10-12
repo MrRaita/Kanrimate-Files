@@ -81,6 +81,8 @@
     <bool name="pref_default_value_file_index_enabled">false</bool>
     <string name="pref_key_file_index_prompt_shown">key_file_index_prompt_shown</string>
     <bool name="pref_default_value_file_index_prompt_shown">false</bool>
+    <string name="pref_key_file_index_partial_search">key_file_index_partial_search</string>
+    <bool name="pref_default_value_file_index_partial_search">false</bool>
     <string name="pref_key_file_index_folders">key_file_index_folders</string>
     <string name="pref_key_file_index_rebuild">key_file_index_rebuild</string>
     <string name="pref_key_archive_invalid_char_mode">key_archive_invalid_char_mode</string>

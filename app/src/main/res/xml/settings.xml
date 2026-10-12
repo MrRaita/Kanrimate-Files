@@ -188,6 +188,13 @@
             android:title="@string/settings_file_index_folders_title"
             android:dependency="@string/pref_key_file_index_enabled" />
 
+        <SwitchPreferenceCompat
+            android:key="@string/pref_key_file_index_partial_search"
+            android:title="@string/settings_file_index_partial_search_title"
+            android:summary="@string/settings_file_index_partial_search_summary"
+            android:defaultValue="@bool/pref_default_value_file_index_partial_search"
+            android:dependency="@string/pref_key_file_index_enabled" />
+
         <Preference
             android:key="@string/pref_key_file_index_rebuild"
             android:title="@string/settings_file_index_rebuild_title"

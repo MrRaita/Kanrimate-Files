@@ -50,6 +50,12 @@ object Settings {
             R.string.pref_key_file_index_enabled, R.bool.pref_default_value_file_index_enabled
         )
 
+    val FILE_INDEX_PARTIAL_SEARCH: SettingLiveData<Boolean> =
+        BooleanSettingLiveData(
+            R.string.pref_key_file_index_partial_search,
+            R.bool.pref_default_value_file_index_partial_search
+        )
+
     val FILE_INDEX_PROMPT_SHOWN: SettingLiveData<Boolean> =
         BooleanSettingLiveData(
             R.string.pref_key_file_index_prompt_shown,

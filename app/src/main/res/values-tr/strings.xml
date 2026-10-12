@@ -871,8 +871,8 @@
     <string name="settings_file_index_rebuild_title">İndeksi şimdi yeniden oluştur</string>
     <string name="settings_file_index_rebuild_started">İndeksleme arka planda başladı.</string>
     <string name="settings_file_index_add_folder">Klasör ekle</string>
-    <string name="file_index_prompt_title">Anında arama için bu klasörler indekslensin mi?</string>
-    <string name="file_index_prompt_enable">Etkinleştir</string>
+    <string name="file_index_prompt_title">Anında arama kurulsun mu?</string>
+    <string name="file_index_prompt_enable">Seçilenleri indeksle</string>
     <string name="file_index_prompt_not_now">Şimdi değil</string>
     <string name="notification_channel_file_index_name">Arama indeksleme</string>
     <string name="notification_channel_file_index_description">Dosya adı indeksinin oluşturulma durumu</string>
@@ -880,4 +880,10 @@
     <string name="file_index_notification_progress_format">Şimdiye kadar %1$d dosya indekslendi</string>
     <string name="file_index_notification_done_title">Arama indeksi hazır</string>
     <string name="file_index_notification_done_format">%1$d dosya ve klasör indekslendi</string>
+    <string name="file_index_prompt_message">Aramanın anında sonuç vermesi için dosya ve klasör adları (içerik asla) indekslenir. Dahili depolamadaki her şeyi indeksleyebilir ya da klasörleri kendin seçebilirsin.</string>
+    <string name="file_index_prompt_all">Tüm dizinleri indeksle</string>
+    <string name="file_index_prompt_choose">Kendim seçeceğim</string>
+    <string name="file_index_prompt_choose_title">İndekslenecek klasörler</string>
+    <string name="settings_file_index_partial_search_title">Üst klasörden arama</string>
+    <string name="settings_file_index_partial_search_summary">İndekslediğin klasörleri içeren ama tamamı indekslenmemiş bir klasörde arama yaparken yalnızca indeksli klasörler kullanılır, sonuç anında gelir. Sonuçlar eksik olabilir. Kapalıyken yavaş ama eksiksiz arama yapılır.</string>
 </resources>
