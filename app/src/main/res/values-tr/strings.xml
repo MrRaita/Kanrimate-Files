@@ -886,4 +886,11 @@
     <string name="file_index_prompt_choose_title">İndekslenecek klasörler</string>
     <string name="settings_file_index_partial_search_title">Üst klasörden arama</string>
     <string name="settings_file_index_partial_search_summary">İndekslediğin klasörleri içeren ama tamamı indekslenmemiş bir klasörde arama yaparken yalnızca indeksli klasörler kullanılır, sonuç anında gelir. Sonuçlar eksik olabilir. Kapalıyken yavaş ama eksiksiz arama yapılır.</string>
+    <string name="file_index_empty_message">İndex modundayken, anlık eşitleme aktif değilse ya da eşitleme eşiği çok yüksekse yeni klasör ve dizinler görülmeyebilir. Normal modda aramak ister misiniz?</string>
+    <string name="file_index_empty_action">Ara</string>
+    <string name="file_index_choice_title">Normal modda ara</string>
+    <string name="file_index_choice_index_and_search">İndeksleyip ara</string>
+    <string name="file_index_choice_index_and_search_description">Şimdi normal modda arar ve aynı anda indekslemeyi başlatır, böylece indeks yeni klasör ve dosyalara yetişir.</string>
+    <string name="file_index_choice_search_only">İndekslemeden ara</string>
+    <string name="file_index_choice_search_only_description">Yalnızca normal modda arar. İndeks olduğu gibi kalır.</string>
 </resources>

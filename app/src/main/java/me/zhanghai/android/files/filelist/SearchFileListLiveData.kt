@@ -25,7 +25,8 @@ import java.util.concurrent.Future
 
 class SearchFileListLiveData(
     private val path: Path,
-    private val query: String
+    private val query: String,
+    private val useIndex: Boolean = true
 ) : CloseableLiveData<Stateful<List<FileItem>>>() {
     private var future: Future<Unit>? = null
 
@@ -39,8 +40,13 @@ class SearchFileListLiveData(
         future = AppExecutors.io.submit<Unit> {
             val fileList = mutableListOf<FileItem>()
             try {
-                val indexedPaths =
-                    if (path.isLinuxPath) FileIndex.search(path.toFile().path, query) else null
+                val indexResult =
+                    if (useIndex && path.isLinuxPath) {
+                        FileIndex.search(path.toFile().path, query)
+                    } else {
+                        null
+                    }
+                val indexedPaths = indexResult?.paths
                 if (indexedPaths != null) {
                     for ((index, indexedPath) in indexedPaths.withIndex()) {
                         if (Thread.currentThread().isInterrupted) {

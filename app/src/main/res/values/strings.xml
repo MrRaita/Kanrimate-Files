@@ -1036,4 +1036,11 @@
     <string name="file_index_prompt_choose_title">Folders to index</string>
     <string name="settings_file_index_partial_search_title">Search from parent folders</string>
     <string name="settings_file_index_partial_search_summary">When you search in a folder that contains your indexed folders but is not fully indexed, use only the indexed folders for instant results. Results can be incomplete. Off: use the slower, complete search.</string>
+    <string name="file_index_empty_message">In index mode, if instant sync is not active or the sync threshold is too high, new folders and files may not be seen. Search in normal mode?</string>
+    <string name="file_index_empty_action">Search</string>
+    <string name="file_index_choice_title">Search in normal mode</string>
+    <string name="file_index_choice_index_and_search">Index and search</string>
+    <string name="file_index_choice_index_and_search_description">Searches normally now and starts indexing at the same time, so the index catches up with new folders and files.</string>
+    <string name="file_index_choice_search_only">Search without indexing</string>
+    <string name="file_index_choice_search_only_description">Only searches normally. The index is left as it is.</string>
 </resources>

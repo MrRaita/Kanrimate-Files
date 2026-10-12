@@ -17,6 +17,7 @@ import me.zhanghai.android.files.app.AppActivity
 import me.zhanghai.android.files.file.MimeType
 import me.zhanghai.android.files.fileindex.FileIndex
 import me.zhanghai.android.files.fileindex.FileIndexPrompt
+import me.zhanghai.android.files.util.AppExecutors
 import me.zhanghai.android.files.util.createIntent
 import me.zhanghai.android.files.util.extraPath
 import me.zhanghai.android.files.util.putArgs
@@ -45,6 +46,7 @@ class FileListActivity : AppActivity() {
     override fun onStart() {
         super.onStart()
 
+        AppExecutors.io.execute { FileIndex.refreshRootsCache() }
         if (intent.action == Intent.ACTION_MAIN) {
             FileIndex.refreshIfStale()
         }

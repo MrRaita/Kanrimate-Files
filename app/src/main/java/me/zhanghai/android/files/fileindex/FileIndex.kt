@@ -37,6 +37,17 @@ object FileIndex {
     private const val REFRESH_AFTER_MILLIS = 12L * 60 * 60 * 1000
     private const val MAX_RESULTS = 5000
 
+    private const val STALE_AFTER_MILLIS = 30L * 60 * 1000
+
+    /** Result of an index lookup. [paths] is null when the index was not used. */
+    class SearchResult(val paths: List<String>?, val failed: Boolean = false)
+
+    private class IndexedRoot(val path: String, val scannedAt: Long)
+
+    /** In-memory copy of the finished roots so the UI never has to touch the database. */
+    @Volatile
+    private var rootsCache: List<IndexedRoot>? = null
+
     private val scanning = AtomicBoolean(false)
 
     @Volatile
@@ -64,6 +75,54 @@ object FileIndex {
 
     private fun database(): SQLiteDatabase = FileIndexDatabase.instance.writableDatabase
 
+    /** Reloads the in-memory roots. Call from a background thread. */
+    fun refreshRootsCache() {
+        try {
+            val roots = mutableListOf<IndexedRoot>()
+            database().rawQuery(
+                "SELECT path, scanned_at FROM roots WHERE scanned_at > 0", null
+            ).use {
+                while (it.moveToNext()) {
+                    roots += IndexedRoot(it.getString(0), it.getLong(1))
+                }
+            }
+            rootsCache = roots
+        } catch (e: SQLiteException) {
+            e.printStackTrace()
+            rootsCache = null
+        }
+    }
+
+    private fun selectFolders(root: String, indexedRoots: List<String>): List<String> {
+        val prefix = root.trimEnd('/')
+        val covered = indexedRoots.any { root == it || root.startsWith(it.trimEnd('/') + "/") }
+        return when {
+            covered -> listOf(prefix)
+            Settings.FILE_INDEX_PARTIAL_SEARCH.valueCompat ->
+                indexedRoots.filter { it.startsWith("$prefix/") }.map { it.trimEnd('/') }
+            else -> emptyList()
+        }
+    }
+
+    /** Whether a search in [searchRoot] would be answered from the index. Cheap, UI-safe. */
+    fun canSearch(searchRoot: String): Boolean {
+        if (!Settings.FILE_INDEX_ENABLED.valueCompat) {
+            return false
+        }
+        val roots = rootsCache ?: return false
+        return selectFolders(normalizeRoot(searchRoot), roots.map { it.path }).isNotEmpty()
+    }
+
+    /** Whether the index for [searchRoot] was last refreshed a while ago. */
+    fun isStale(searchRoot: String): Boolean {
+        val roots = rootsCache ?: return false
+        val root = normalizeRoot(searchRoot)
+        val used = selectFolders(root, roots.map { it.path })
+        val oldest = roots.filter { r -> used.any { it == r.path.trimEnd('/') || it.startsWith(r.path.trimEnd('/') + "/") } }
+            .minOfOrNull { it.scannedAt } ?: return false
+        return System.currentTimeMillis() - oldest > STALE_AFTER_MILLIS
+    }
+
     fun getRoots(): List<String> {
         val roots = mutableListOf<String>()
         try {
@@ -85,6 +144,7 @@ object FileIndex {
         } catch (e: SQLiteException) {
             e.printStackTrace()
         }
+        refreshRootsCache()
     }
 
     fun removeRoots(paths: Collection<String>) {
@@ -106,6 +166,7 @@ object FileIndex {
         } catch (e: SQLiteException) {
             e.printStackTrace()
         }
+        refreshRootsCache()
     }
 
     fun clear() {
@@ -117,6 +178,7 @@ object FileIndex {
         } catch (e: SQLiteException) {
             e.printStackTrace()
         }
+        refreshRootsCache()
     }
 
     fun getEntryCount(): Long =
@@ -219,6 +281,7 @@ object FileIndex {
                 }
             }
         }
+        refreshRootsCache()
         if (finishedAll) {
             FileIndexNotification.showDone(total)
         } else {
@@ -319,12 +382,12 @@ object FileIndex {
     /**
      * Looks up names containing [query] below [searchRoot].
      *
-     * @return the matching paths, or `null` if the index cannot answer this search (disabled,
-     *   folder not covered, or any database problem) and the caller should walk the tree
+     * The result has no paths if the index cannot answer this search (disabled, folder not
+     * covered), and `failed` set if a database problem forced that. Callers then walk the tree.
      */
-    fun search(searchRoot: String, query: String): List<String>? {
+    fun search(searchRoot: String, query: String): SearchResult {
         if (!Settings.FILE_INDEX_ENABLED.valueCompat || query.isBlank()) {
-            return null
+            return SearchResult(null)
         }
         val root = normalizeRoot(searchRoot)
         try {
@@ -335,20 +398,11 @@ object FileIndex {
                     indexedRoots += it.getString(0)
                 }
             }
-            val prefix = root.trimEnd('/')
-            val covered = indexedRoots.any {
-                root == it || root.startsWith(it.trimEnd('/') + "/")
-            }
             // Folders to read from the index: just the search folder if it is fully covered,
             // otherwise (only if the user allowed it) the indexed folders below it.
-            val searchFolders = when {
-                covered -> listOf(prefix)
-                Settings.FILE_INDEX_PARTIAL_SEARCH.valueCompat ->
-                    indexedRoots.filter { it.startsWith("$prefix/") }.map { it.trimEnd('/') }
-                else -> emptyList()
-            }
+            val searchFolders = selectFolders(root, indexedRoots)
             if (searchFolders.isEmpty()) {
-                return null
+                return SearchResult(null)
             }
             val results = mutableListOf<String>()
             val likeArg = "%" + escapeLike(fold(query)) + "%"
@@ -364,10 +418,10 @@ object FileIndex {
                     }
                 }
             }
-            return results
-        } catch (e: SQLiteException) {
+            return SearchResult(results)
+        } catch (e: Exception) {
             e.printStackTrace()
-            return null
+            return SearchResult(null, failed = true)
         }
     }
 }

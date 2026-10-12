@@ -15,6 +15,8 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
+import com.google.android.material.snackbar.Snackbar
+import android.widget.ArrayAdapter
 import android.os.Looper
 import android.text.TextUtils
 import android.view.KeyCharacterMap
@@ -83,6 +85,8 @@ import me.zhanghai.android.files.provider.archive.createArchiveRootPath
 import me.zhanghai.android.files.provider.common.exists
 import java8.nio.file.NoSuchFileException
 import me.zhanghai.android.files.util.AppExecutors
+import me.zhanghai.android.files.fileindex.FileIndex
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import me.zhanghai.android.files.provider.archive.isArchivePath
 import me.zhanghai.android.files.provider.linux.isLinuxPath
 import me.zhanghai.android.files.settings.SelectionActions
@@ -187,15 +191,28 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
 
     private lateinit var adapter: FileListAdapter
 
-    private val debouncedSearchRunnable = DebouncedRunnable(Handler(Looper.getMainLooper()), 1000) {
+    private fun runDebouncedSearch() {
         if (!isResumed || !viewModel.isSearchViewExpanded) {
-            return@DebouncedRunnable
+            return
         }
         val query = viewModel.searchViewQuery
         if (query.isEmpty()) {
-            return@DebouncedRunnable
+            return
         }
         viewModel.search(query)
+    }
+
+    /** Normal (tree walking) search waits for typing to settle... */
+    private val debouncedSearchRunnable =
+        DebouncedRunnable(Handler(Looper.getMainLooper()), 1000) { runDebouncedSearch() }
+
+    /** ...while index lookups are cheap enough to follow every few keystrokes. */
+    private val fastDebouncedSearchRunnable =
+        DebouncedRunnable(Handler(Looper.getMainLooper()), 120) { runDebouncedSearch() }
+
+    private fun isSearchIndexed(): Boolean {
+        val path = viewModel.currentPath
+        return path.isLinuxPath && FileIndex.canSearch(path.toFile().path)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -422,6 +439,7 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             override fun onQueryTextSubmit(query: String): Boolean {
                 debouncedSearchRunnable.cancel()
+                fastDebouncedSearchRunnable.cancel()
                 viewModel.search(query)
                 return true
             }
@@ -431,13 +449,76 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
                     return false
                 }
                 viewModel.searchViewQuery = query
-                debouncedSearchRunnable()
+                if (isSearchIndexed()) {
+                    debouncedSearchRunnable.cancel()
+                    fastDebouncedSearchRunnable()
+                } else {
+                    fastDebouncedSearchRunnable.cancel()
+                    debouncedSearchRunnable()
+                }
                 return false
             }
         })
         if (viewModel.isSearchViewExpanded) {
             menuBinding.searchItem.expandActionView()
         }
+    }
+
+    private var indexEmptySnackbar: Snackbar? = null
+
+    private fun dismissIndexEmptySnackbar() {
+        indexEmptySnackbar?.dismiss()
+        indexEmptySnackbar = null
+    }
+
+    /**
+     * An index search found nothing. The index may simply not know about new files and folders,
+     * so offer a normal search.
+     */
+    private fun showIndexEmptySnackbar(query: String) {
+        if (indexEmptySnackbar?.isShownOrQueued == true) {
+            return
+        }
+        val snackbar = Snackbar.make(
+            binding.root, R.string.file_index_empty_message, Snackbar.LENGTH_INDEFINITE
+        )
+            .setAction(R.string.file_index_empty_action) { showIndexSearchChoiceDialog(query) }
+        snackbar.view.findViewById<TextView>(com.google.android.material.R.id.snackbar_text)
+            ?.maxLines = 8
+        indexEmptySnackbar = snackbar
+        snackbar.show()
+    }
+
+    private fun showIndexSearchChoiceDialog(query: String) {
+        val titles = arrayOf(
+            getString(R.string.file_index_choice_index_and_search),
+            getString(R.string.file_index_choice_search_only)
+        )
+        val descriptions = arrayOf(
+            getString(R.string.file_index_choice_index_and_search_description),
+            getString(R.string.file_index_choice_search_only_description)
+        )
+        val adapter = object : ArrayAdapter<String>(
+            requireContext(), android.R.layout.simple_list_item_2, android.R.id.text1, titles
+        ) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
+                val view = super.getView(position, convertView, parent)
+                view.findViewById<TextView>(android.R.id.text1).text = titles[position]
+                view.findViewById<TextView>(android.R.id.text2).text = descriptions[position]
+                return view
+            }
+        }
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.file_index_choice_title)
+            .setAdapter(adapter) { _, which ->
+                dismissIndexEmptySnackbar()
+                viewModel.search(query, useIndex = false)
+                if (which == 0) {
+                    FileIndex.startScan(force = true)
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun collapseSearchView() {
@@ -676,6 +757,13 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
             }
         }
         binding.emptyView.fadeToVisibilityUnsafe(stateful is Success && !hasFiles)
+        val searchState = viewModel.searchState
+        if (stateful is Success && !hasFiles && searchState.isSearching && searchState.useIndex &&
+            searchState.query.isNotBlank() && isSearchIndexed()) {
+            showIndexEmptySnackbar(searchState.query)
+        } else if (stateful !is Loading) {
+            dismissIndexEmptySnackbar()
+        }
         if (files != null) {
             updateAdapterFileList()
         } else {
