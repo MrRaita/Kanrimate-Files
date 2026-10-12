@@ -189,13 +189,27 @@ object FileIndex {
 
     private fun scanAllRoots(force: Boolean) {
         val db = database()
+        if (getRoots().isEmpty()) {
+            return
+        }
         var total = 0
+        // The previous scan's size is the best guess for how much work there is.
+        val estimatedTotal = getEntryCount().coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        var finishedAll = true
+        FileIndexNotification.showProgress(0, estimatedTotal, force = true)
         for (root in getRoots()) {
             if (cancelRequested || !canScanNow(force)) {
-                return
+                finishedAll = false
+                break
             }
             val scanId = System.currentTimeMillis()
-            val completed = scanRoot(db, root, scanId, force, MAX_ENTRIES - total) { total += it }
+            val completed = scanRoot(db, root, scanId, force, MAX_ENTRIES - total) {
+                total += it
+                FileIndexNotification.showProgress(total, estimatedTotal)
+            }
+            if (!completed) {
+                finishedAll = false
+            }
             if (completed) {
                 try {
                     db.execSQL("DELETE FROM entries WHERE root = ? AND scan <> ?", arrayOf<Any>(root, scanId))
@@ -204,6 +218,11 @@ object FileIndex {
                     e.printStackTrace()
                 }
             }
+        }
+        if (finishedAll) {
+            FileIndexNotification.showDone(total)
+        } else {
+            FileIndexNotification.cancel()
         }
     }
 

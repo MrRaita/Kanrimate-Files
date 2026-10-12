@@ -11,6 +11,7 @@ import android.webkit.WebView
 import jcifs.context.SingletonContext
 import me.zhanghai.android.files.BuildConfig
 import me.zhanghai.android.files.coil.initializeCoil
+import me.zhanghai.android.files.fileindex.fileIndexNotificationTemplate
 import me.zhanghai.android.files.filejob.fileJobNotificationTemplate
 import me.zhanghai.android.files.ftpserver.ftpServerServiceNotificationTemplate
 import me.zhanghai.android.files.hiddenapi.HiddenApi
@@ -88,6 +89,7 @@ private fun createNotificationChannels() {
         notificationManager.createNotificationChannels(
             listOf(
                 backgroundActivityStartNotificationTemplate.channelTemplate,
+                fileIndexNotificationTemplate.channelTemplate,
                 fileJobNotificationTemplate.channelTemplate,
                 ftpServerServiceNotificationTemplate.channelTemplate
             ).map { it.create(application) }

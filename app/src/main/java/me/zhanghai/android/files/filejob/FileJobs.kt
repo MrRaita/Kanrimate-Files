@@ -806,8 +806,20 @@ class CopyFileJob(private val sources: List<Path>, private val targetDirectory: 
         if (!isExtract || !ArchiveEntryName.isNeeded(target)) {
             return target.resolveForeign(relative)
         }
+        val relativeBytes = relative.asByteStringListPath()
+        // Same as resolveForeign(): an empty path (the archive root) is the target itself, and an
+        // absolute path stays as it is.
+        if (relativeBytes.isAbsolute) {
+            return relative
+        }
+        if (relativeBytes.isEmpty) {
+            return target
+        }
         var result: ByteStringListPath<*> = target.asByteStringListPath()
-        for (name in relative.asByteStringListPath().nameByteStrings) {
+        for (name in relativeBytes.nameByteStrings) {
+            if (name.isEmpty()) {
+                continue
+            }
             result = result.resolve(ByteString.fromString(ArchiveEntryName.sanitize(name.toString())))
         }
         return result

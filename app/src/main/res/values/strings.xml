@@ -1024,4 +1024,10 @@
     <string name="file_index_prompt_title">Index these folders for instant search?</string>
     <string name="file_index_prompt_enable">Enable</string>
     <string name="file_index_prompt_not_now">Not now</string>
+    <string name="notification_channel_file_index_name">Search indexing</string>
+    <string name="notification_channel_file_index_description">Progress of building the file name index</string>
+    <string name="file_index_notification_title">Indexing files for search</string>
+    <string name="file_index_notification_progress_format">%1$d files indexed so far</string>
+    <string name="file_index_notification_done_title">Search index ready</string>
+    <string name="file_index_notification_done_format">%1$d files and folders indexed</string>
 </resources>
