@@ -6,7 +6,6 @@
 package me.zhanghai.android.files.fileindex
 
 import android.content.Context
-import android.os.Environment
 import android.os.Handler
 import android.os.Looper
 import android.widget.ScrollView
@@ -18,8 +17,6 @@ import me.zhanghai.android.files.util.copyText
 
 /** Shows what this device supports and lets the user run the index benchmark. */
 object IndexDiagnosticsDialog {
-    private const val BENCHMARK_ENTRIES = 200_000
-
     fun show(context: Context) {
         val text = TextView(context).apply {
             setTextIsSelectable(true)
@@ -58,9 +55,7 @@ object IndexDiagnosticsDialog {
             running = true
             Thread {
                 try {
-                    IndexDiagnostics.runBenchmark(
-                        Environment.getExternalStorageDirectory(), BENCHMARK_ENTRIES
-                    ) { append(it) }
+                    IndexDiagnostics.runFullBenchmark { append(it) }
                 } catch (e: Throwable) {
                     append("Failed: $e")
                 } finally {
