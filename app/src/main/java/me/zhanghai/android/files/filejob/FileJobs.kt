@@ -32,6 +32,7 @@ import me.zhanghai.android.files.R
 import me.zhanghai.android.files.app.BackgroundActivityStarter
 import me.zhanghai.android.files.app.mainExecutor
 import me.zhanghai.android.files.compat.mainExecutorCompat
+import me.zhanghai.android.files.file.ArchiveEntryName
 import me.zhanghai.android.files.file.FileItem
 import me.zhanghai.android.files.file.MimeType
 import me.zhanghai.android.files.file.asFileSize
@@ -44,6 +45,7 @@ import me.zhanghai.android.files.provider.archive.archiver.ArchiveWriter
 import me.zhanghai.android.files.provider.archive.createArchiveRootPath
 import me.zhanghai.android.files.provider.archive.isArchivePath
 import me.zhanghai.android.files.provider.common.ByteString
+import me.zhanghai.android.files.provider.common.ByteStringListPath
 import me.zhanghai.android.files.provider.common.ByteStringBuilder
 import me.zhanghai.android.files.provider.common.InvalidFileNameException
 import me.zhanghai.android.files.provider.common.PosixFileModeBit
@@ -664,7 +666,8 @@ class ArchiveFileJob(
                 directory: Path,
                 attributes: BasicFileAttributes
             ): FileVisitResult {
-                val directoryInTarget = target.resolveForeign(source.relativize(directory))
+                val directoryInTarget =
+                    resolveInTarget(target, source.relativize(directory), isExtract)
                 archive(directory, writer, directoryInTarget, archiveFile, transferInfo)
                 throwIfInterrupted()
                 return FileVisitResult.CONTINUE
@@ -751,7 +754,7 @@ class CopyFileJob(private val sources: List<Path>, private val targetDirectory: 
             val target = if (source.parent == targetDirectory) {
                 getTargetPathForDuplicate(source)
             } else {
-                targetDirectory.resolveForeign(getTargetFileName(source))
+                resolveInTarget(targetDirectory, getTargetFileName(source), isExtract)
             }
             copyRecursively(source, target, isExtract, transferInfo, actionAllInfo)
             throwIfInterrupted()
@@ -782,7 +785,7 @@ class CopyFileJob(private val sources: List<Path>, private val targetDirectory: 
 
             @Throws(IOException::class)
             override fun visitFile(file: Path, attributes: BasicFileAttributes): FileVisitResult {
-                val fileInTarget = target.resolveForeign(source.relativize(file))
+                val fileInTarget = resolveInTarget(target, source.relativize(file), isExtract)
                 copy(file, fileInTarget, isExtract, transferInfo, actionAllInfo)
                 throwIfInterrupted()
                 return FileVisitResult.CONTINUE
@@ -794,6 +797,20 @@ class CopyFileJob(private val sources: List<Path>, private val targetDirectory: 
                 return super.visitFileFailed(file, exception)
             }
         })
+    }
+
+    /**
+     * Resolves [relative] against [target], making each name valid for the target when extracting.
+     */
+    private fun resolveInTarget(target: Path, relative: Path, isExtract: Boolean): Path {
+        if (!isExtract || !ArchiveEntryName.isNeeded(target)) {
+            return target.resolveForeign(relative)
+        }
+        var result: ByteStringListPath<*> = target.asByteStringListPath()
+        for (name in relative.asByteStringListPath().nameByteStrings) {
+            result = result.resolve(ByteString.fromString(ArchiveEntryName.sanitize(name.toString())))
+        }
+        return result
     }
 
     private fun getTargetPathForDuplicate(source: Path): Path {

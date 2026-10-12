@@ -77,6 +77,18 @@
         <item>5</item>
         <item>6</item>
     </string-array>
+    <string name="pref_key_file_index_enabled">key_file_index_enabled</string>
+    <bool name="pref_default_value_file_index_enabled">false</bool>
+    <string name="pref_key_file_index_prompt_shown">key_file_index_prompt_shown</string>
+    <bool name="pref_default_value_file_index_prompt_shown">false</bool>
+    <string name="pref_key_file_index_folders">key_file_index_folders</string>
+    <string name="pref_key_file_index_rebuild">key_file_index_rebuild</string>
+    <string name="pref_key_archive_invalid_char_mode">key_archive_invalid_char_mode</string>
+    <string name="pref_default_value_archive_invalid_char_mode">lookalike</string>
+    <string-array name="pref_entry_values_archive_invalid_char_mode">
+        <item>lookalike</item>
+        <item>underscore</item>
+    </string-array>
     <string name="pref_key_file_list_density">key_file_list_density</string>
     <string name="pref_default_value_file_list_density">0</string>
     <string-array name="pref_entry_values_file_list_density">

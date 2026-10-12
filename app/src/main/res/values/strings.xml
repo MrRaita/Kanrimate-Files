@@ -842,6 +842,11 @@
     <string name="settings_black_night_mode">Black night mode</string>
     <string name="settings_file_list_animation_title">File list animation</string>
     <string name="terminal_termux_setup_required">To open Termux from here, allow “Run commands in Termux environment” for this app in system settings (App info → Permissions) and set allow-external-apps = true in ~/.termux/termux.properties.</string>
+    <string name="settings_archive_invalid_char_mode_title">Forbidden characters in archive names</string>
+    <string-array name="settings_archive_invalid_char_mode_entries">
+        <item>Similar-looking characters (： ？ ＊)</item>
+        <item>Underscore (_)</item>
+    </string-array>
     <string name="settings_file_list_density_title">List density</string>
     <string-array name="settings_file_list_density_entries">
         <item>Comfortable</item>
@@ -1008,4 +1013,15 @@
     <string name="settings_selection_actions_move_to_menu">Move to ⋮ menu</string>
     <string name="settings_selection_actions_hint_toolbar">Shown as buttons while files are selected. Drag to reorder, tap ⇄ to move an action to the ⋮ menu, ✕ to hide it.</string>
     <string name="settings_selection_actions_hint_menu">Shown inside the ⋮ menu. Drag to reorder, tap ⇄ to move an action to the toolbar, ✕ to hide it.</string>
+    <string name="settings_file_index_title">Search index</string>
+    <string name="settings_file_index_enabled_title">Fast search index</string>
+    <string name="settings_file_index_enabled_summary">Keeps a list of file and folder names (never contents) for the folders you choose, so searches are instant. It refreshes in the background at most twice a day, and not on low battery or in power saving mode. New files appear after the next refresh.</string>
+    <string name="settings_file_index_folders_title">Indexed folders</string>
+    <string name="settings_file_index_folders_summary_format">%1$d folders, %2$d names</string>
+    <string name="settings_file_index_rebuild_title">Rebuild index now</string>
+    <string name="settings_file_index_rebuild_started">Indexing started in the background.</string>
+    <string name="settings_file_index_add_folder">Add folder</string>
+    <string name="file_index_prompt_title">Index these folders for instant search?</string>
+    <string name="file_index_prompt_enable">Enable</string>
+    <string name="file_index_prompt_not_now">Not now</string>
 </resources>

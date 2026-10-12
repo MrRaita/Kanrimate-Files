@@ -594,6 +594,11 @@
     </string-array>
     <string name="settings_black_night_mode">Siyah gece modu</string>
     <string name="terminal_termux_setup_required">Termux\'u buradan açmak için sistem ayarlarında (Uygulama bilgisi → İzinler) bu uygulamaya “Termux ortamında komut çalıştır” iznini verin ve ~/.termux/termux.properties dosyasına allow-external-apps = true yazın.</string>
+    <string name="settings_archive_invalid_char_mode_title">Arşiv adlarındaki yasak karakterler</string>
+    <string-array name="settings_archive_invalid_char_mode_entries">
+        <item>Benzer görünümlü karakterler (： ？ ＊)</item>
+        <item>Alt çizgi (_)</item>
+    </string-array>
     <string name="settings_file_list_density_title">Liste yoğunluğu</string>
     <string-array name="settings_file_list_density_entries">
         <item>Rahat</item>
@@ -858,4 +863,15 @@
         <item>GID ayarla</item>
         <item>Yapışkan bit</item>
     </string-array>
+    <string name="settings_file_index_title">Arama indeksi</string>
+    <string name="settings_file_index_enabled_title">Hızlı arama indeksi</string>
+    <string name="settings_file_index_enabled_summary">Seçtiğin klasörlerdeki dosya ve klasör adlarının (içerik asla) listesini tutar, böylece arama anında sonuç verir. Arka planda günde en fazla iki kez yenilenir, pil azken ve güç tasarrufu modunda çalışmaz. Yeni dosyalar bir sonraki yenilemeden sonra görünür.</string>
+    <string name="settings_file_index_folders_title">İndekslenen klasörler</string>
+    <string name="settings_file_index_folders_summary_format">%1$d klasör, %2$d ad</string>
+    <string name="settings_file_index_rebuild_title">İndeksi şimdi yeniden oluştur</string>
+    <string name="settings_file_index_rebuild_started">İndeksleme arka planda başladı.</string>
+    <string name="settings_file_index_add_folder">Klasör ekle</string>
+    <string name="file_index_prompt_title">Anında arama için bu klasörler indekslensin mi?</string>
+    <string name="file_index_prompt_enable">Etkinleştir</string>
+    <string name="file_index_prompt_not_now">Şimdi değil</string>
 </resources>

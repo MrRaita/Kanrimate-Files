@@ -45,6 +45,17 @@ object Settings {
             R.bool.pref_default_value_file_list_persistent_drawer_open
         )
 
+    val FILE_INDEX_ENABLED: SettingLiveData<Boolean> =
+        BooleanSettingLiveData(
+            R.string.pref_key_file_index_enabled, R.bool.pref_default_value_file_index_enabled
+        )
+
+    val FILE_INDEX_PROMPT_SHOWN: SettingLiveData<Boolean> =
+        BooleanSettingLiveData(
+            R.string.pref_key_file_index_prompt_shown,
+            R.bool.pref_default_value_file_index_prompt_shown
+        )
+
     val SEARCH_RETURN_PREVIOUS: SettingLiveData<Boolean> =
         BooleanSettingLiveData(
             R.string.pref_key_search_return_previous,
@@ -71,6 +82,12 @@ object Settings {
         StringSettingLiveData(
             R.string.pref_key_file_list_grid_columns,
             R.string.pref_default_value_file_list_grid_columns
+        )
+
+    val ARCHIVE_INVALID_CHAR_MODE: SettingLiveData<String> =
+        StringSettingLiveData(
+            R.string.pref_key_archive_invalid_char_mode,
+            R.string.pref_default_value_archive_invalid_char_mode
         )
 
     val FILE_LIST_DENSITY: SettingLiveData<String> =

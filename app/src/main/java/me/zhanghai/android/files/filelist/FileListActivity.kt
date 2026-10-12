@@ -15,6 +15,8 @@ import androidx.fragment.app.commit
 import java8.nio.file.Path
 import me.zhanghai.android.files.app.AppActivity
 import me.zhanghai.android.files.file.MimeType
+import me.zhanghai.android.files.fileindex.FileIndex
+import me.zhanghai.android.files.fileindex.FileIndexPrompt
 import me.zhanghai.android.files.util.createIntent
 import me.zhanghai.android.files.util.extraPath
 import me.zhanghai.android.files.util.putArgs
@@ -30,9 +32,21 @@ class FileListActivity : AppActivity() {
         if (savedInstanceState == null) {
             fragment = FileListFragment().putArgs(FileListFragment.Args(intent))
             supportFragmentManager.commit { add(android.R.id.content, fragment) }
+            // Only the normal launch asks; picker modes of this activity must not.
+            if (intent.action == Intent.ACTION_MAIN) {
+                FileIndexPrompt.showIfNeeded(this)
+            }
         } else {
             fragment = supportFragmentManager.findFragmentById(android.R.id.content)
                 as FileListFragment
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+
+        if (intent.action == Intent.ACTION_MAIN) {
+            FileIndex.refreshIfStale()
         }
     }
 

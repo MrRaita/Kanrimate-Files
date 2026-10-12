@@ -7,6 +7,9 @@ package me.zhanghai.android.files.filelist
 
 import me.zhanghai.android.files.util.AppExecutors
 import java8.nio.file.Path
+import java8.nio.file.Paths
+import me.zhanghai.android.files.fileindex.FileIndex
+import me.zhanghai.android.files.provider.linux.isLinuxPath
 import me.zhanghai.android.files.file.FileItem
 import me.zhanghai.android.files.file.loadFileItem
 import me.zhanghai.android.files.provider.common.search
@@ -36,6 +39,27 @@ class SearchFileListLiveData(
         future = AppExecutors.io.submit<Unit> {
             val fileList = mutableListOf<FileItem>()
             try {
+                val indexedPaths =
+                    if (path.isLinuxPath) FileIndex.search(path.toFile().path, query) else null
+                if (indexedPaths != null) {
+                    for ((index, indexedPath) in indexedPaths.withIndex()) {
+                        if (Thread.currentThread().isInterrupted) {
+                            return@submit
+                        }
+                        val fileItem = try {
+                            Paths.get(indexedPath).loadFileItem()
+                        } catch (e: IOException) {
+                            // The file is gone since the index was built; skip it.
+                            continue
+                        }
+                        fileList.add(fileItem)
+                        if ((index + 1) % INDEXED_CHUNK_SIZE == 0) {
+                            postValue(Loading(fileList.toList()))
+                        }
+                    }
+                    postValue(Success(fileList))
+                    return@submit
+                }
                 path.search(query, INTERVAL_MILLIS) { paths: List<Path> ->
                     for (path in paths) {
                         val fileItem = try {
@@ -63,5 +87,6 @@ class SearchFileListLiveData(
 
     companion object {
         private const val INTERVAL_MILLIS = 500L
+        private const val INDEXED_CHUNK_SIZE = 200
     }
 }

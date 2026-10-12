@@ -55,6 +55,14 @@
             app:useSimpleSummaryProvider="true" />
 
         <rikka.preference.SimpleMenuPreference
+            android:key="@string/pref_key_archive_invalid_char_mode"
+            android:title="@string/settings_archive_invalid_char_mode_title"
+            android:defaultValue="@string/pref_default_value_archive_invalid_char_mode"
+            android:entries="@array/settings_archive_invalid_char_mode_entries"
+            android:entryValues="@array/pref_entry_values_archive_invalid_char_mode"
+            app:useSimpleSummaryProvider="true" />
+
+        <rikka.preference.SimpleMenuPreference
             android:key="@string/pref_key_file_list_density"
             android:title="@string/settings_file_list_density_title"
             android:defaultValue="@string/pref_default_value_file_list_density"
@@ -165,5 +173,24 @@
             android:max="10"
             app:min="1"
             app:showSeekBarValue="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/settings_file_index_title">
+
+        <SwitchPreferenceCompat
+            android:key="@string/pref_key_file_index_enabled"
+            android:title="@string/settings_file_index_enabled_title"
+            android:summary="@string/settings_file_index_enabled_summary"
+            android:defaultValue="@bool/pref_default_value_file_index_enabled" />
+
+        <Preference
+            android:key="@string/pref_key_file_index_folders"
+            android:title="@string/settings_file_index_folders_title"
+            android:dependency="@string/pref_key_file_index_enabled" />
+
+        <Preference
+            android:key="@string/pref_key_file_index_rebuild"
+            android:title="@string/settings_file_index_rebuild_title"
+            android:dependency="@string/pref_key_file_index_enabled" />
     </PreferenceCategory>
 </PreferenceScreen>
