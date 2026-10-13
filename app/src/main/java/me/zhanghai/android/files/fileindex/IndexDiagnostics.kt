@@ -28,7 +28,7 @@ import java.io.IOException
 /**
  * Read-only measurements to decide, with real numbers from this device, how the file name index
  * should evolve: what the device supports, how fast a scan is, and how LIKE compares with a
- * trigram-based FTS4 table. It uses a throwaway database in the cache directory and never touches
+ * . It uses a throwaway database in the cache directory and never touches
  * the real index.
  */
 object IndexDiagnostics {
@@ -43,8 +43,6 @@ object IndexDiagnostics {
         val db = SQLiteDatabase.create(null)
         try {
             lines += "SQLite: ${scalar(db, "SELECT sqlite_version()")}"
-            lines += "FTS4: ${probe(db, "CREATE VIRTUAL TABLE temp.p4 USING fts4(x)")}"
-            lines += "FTS5: ${probe(db, "CREATE VIRTUAL TABLE temp.p5 USING fts5(x)")} (not used)"
         } finally {
             db.close()
         }
@@ -64,14 +62,6 @@ object IndexDiagnostics {
             }
         } catch (e: Throwable) {
             "unavailable"
-        }
-
-    private fun probe(db: SQLiteDatabase, sql: String): String =
-        try {
-            db.execSQL(sql)
-            "supported"
-        } catch (e: Exception) {
-            "not supported"
         }
 
     private fun scalar(db: SQLiteDatabase, sql: String): String =
@@ -244,7 +234,7 @@ object IndexDiagnostics {
     }
 
     /**
-     * Scans the real device in three steps and then measures LIKE and trigram FTS4 on what it
+     * Scans the real device in three steps and then measures LIKE on what it
      * found: 1) plain storage, 2) Android/data and Android/obb through the app's root/Shizuku
      * layer, 3) the safe root folders (module and log folders, app data, app code).
      */
@@ -379,51 +369,6 @@ object IndexDiagnostics {
                 times[round] = SystemClock.elapsedRealtime() - start
             }
             log("LIKE '$query': $matches matches, ${times.sorted()[1]} ms (median of 3)")
-        }
-
-        val fts4 = probe(db, "CREATE VIRTUAL TABLE t USING fts4(tri)")
-        if (fts4 != "supported") {
-            log("FTS4 trigram: skipped ($fts4)")
-            return
-        }
-        val ftsStart = SystemClock.elapsedRealtime()
-        val before = bench.file.length()
-        db.beginTransaction()
-        try {
-            val statement = db.compileStatement("INSERT INTO t(docid, tri) VALUES(?, ?)")
-            var docid = 0L
-            db.rawQuery("SELECT fold FROM e", null).use { cursor ->
-                while (cursor.moveToNext()) {
-                    if (cancelRequested) {
-                        return
-                    }
-                    statement.clearBindings()
-                    statement.bindLong(1, ++docid)
-                    statement.bindString(2, FileIndexFts.indexTokens(cursor.getString(0)))
-                    statement.executeInsert()
-                }
-            }
-            db.setTransactionSuccessful()
-        } finally {
-            db.endTransaction()
-        }
-        val ftsMillis = SystemClock.elapsedRealtime() - ftsStart
-        log("FTS4 trigram: build $ftsMillis ms, adds ${(bench.file.length() - before) / 1024} KB")
-        for (query in queries) {
-            if (query.codePointCount(0, query.length) < 3) {
-                log("FTS4 '$query': needs 3+ characters (LIKE fallback)")
-                continue
-            }
-            var matches = 0
-            val times = LongArray(3)
-            for (round in 0 until 3) {
-                val start = SystemClock.elapsedRealtime()
-                matches = db.rawQuery(
-                    "SELECT COUNT(*) FROM t WHERE t MATCH ?", arrayOf(FileIndexFts.matchQuery(query) ?: query)
-                ).use { if (it.moveToFirst()) it.getInt(0) else 0 }
-                times[round] = SystemClock.elapsedRealtime() - start
-            }
-            log("FTS4 '$query': $matches candidates, ${times.sorted()[1]} ms (median of 3)")
         }
     }
 

@@ -48,19 +48,13 @@ object FileIndex {
 
     private const val STALE_AFTER_MILLIS = 30L * 60 * 1000
 
-    const val ENGINE_LIKE = 0
-    const val ENGINE_FTS4 = 1
-
-    const val ROOT_LEVEL_OFF = 0
+    /** Root scope bits; "all" covers the other two. */
     /** Module sources and logs (/data/adb, /data/local/tmp). */
-    const val ROOT_LEVEL_ROOT_DIRS = 1
-    /** The above plus app data and app code. */
-    const val ROOT_LEVEL_USER_DATA = 2
+    const val ROOT_DIRS = 1
+    /** App data and app code (/data/data, /data/app ...). */
+    const val ROOT_USER_DATA = 2
     /** Everything except virtual and duplicate mounts. */
-    const val ROOT_LEVEL_ALL = 3
-
-    private const val META_FTS_READY = "fts_ready"
-    private const val FTS_PAGE = 5000
+    const val ROOT_ALL = 4
 
     /** Result of an index lookup. [paths] is null when the index was not used. */
     class SearchResult(val paths: List<String>?, val failed: Boolean = false)
@@ -72,10 +66,6 @@ object FileIndex {
     private var rootsCache: List<IndexedRoot>? = null
 
     private val scanning = AtomicBoolean(false)
-
-    /** Whether the FTS table is complete for the current entries. */
-    @Volatile
-    private var ftsReady = false
 
     @Volatile
     private var cancelRequested = false
@@ -114,29 +104,9 @@ object FileIndex {
                 }
             }
             rootsCache = roots
-            ftsReady = getMeta(META_FTS_READY) == "1"
         } catch (e: SQLiteException) {
             e.printStackTrace()
             rootsCache = null
-        }
-    }
-
-    private fun getMeta(key: String): String? =
-        try {
-            database().rawQuery("SELECT value FROM meta WHERE key = ?", arrayOf(key)).use {
-                if (it.moveToFirst()) it.getString(0) else null
-            }
-        } catch (e: SQLiteException) {
-            null
-        }
-
-    private fun setMeta(key: String, value: String) {
-        try {
-            database().execSQL(
-                "INSERT OR REPLACE INTO meta(key, value) VALUES(?, ?)", arrayOf<Any>(key, value)
-            )
-        } catch (e: SQLiteException) {
-            e.printStackTrace()
         }
     }
 
@@ -154,14 +124,19 @@ object FileIndex {
     /** Roots that the scope settings manage; everything else was picked by the user. */
     private fun isManagedRoot(root: String): Boolean = isAppDataRoot(root) || needsRoot(root)
 
-    private fun rootLevelRoots(level: Int): List<String> =
-        when (level) {
-            ROOT_LEVEL_ROOT_DIRS -> listOf("/data/adb", "/data/local/tmp")
-            ROOT_LEVEL_USER_DATA ->
-                listOf("/data/adb", "/data/local", "/data/data", "/data/app", "/data/user_de")
-            ROOT_LEVEL_ALL -> listOf("/")
-            else -> emptyList()
+    private fun rootScopeRoots(mask: Int): List<String> {
+        if (mask and ROOT_ALL != 0) {
+            return listOf("/")
         }
+        val roots = mutableListOf<String>()
+        if (mask and ROOT_DIRS != 0) {
+            roots += listOf("/data/adb", "/data/local/tmp")
+        }
+        if (mask and ROOT_USER_DATA != 0) {
+            roots += listOf("/data/local", "/data/data", "/data/app", "/data/user_de")
+        }
+        return roots
+    }
 
     /**
      * Makes the list of roots match the scope settings. Call from a background thread.
@@ -174,7 +149,7 @@ object FileIndex {
             desired += "$storage/Android/data"
             desired += "$storage/Android/obb"
         }
-        desired += rootLevelRoots(Settings.FILE_INDEX_ROOT_LEVEL.valueCompat)
+        desired += rootScopeRoots(Settings.FILE_INDEX_ROOT_MASK.valueCompat)
         if (desired.isNotEmpty() && Settings.ROOT_STRATEGY.valueCompat == RootStrategy.NEVER) {
             // These folders can only be read through the root/Shizuku file layer.
             Settings.ROOT_STRATEGY.putValue(RootStrategy.AUTOMATIC)
@@ -188,27 +163,6 @@ object FileIndex {
         }
         return remove.isNotEmpty() || add.isNotEmpty()
     }
-
-    /** Switches the search engine; the FTS table is built by the next scan. */
-    fun applyEngine(engine: Int) {
-        Settings.FILE_INDEX_ENGINE.putValue(engine)
-        if (engine != ENGINE_FTS4) {
-            dropFts()
-        }
-    }
-
-    private fun dropFts() {
-        ftsReady = false
-        try {
-            database().execSQL("DROP TABLE IF EXISTS ${FileIndexFts.TABLE}")
-        } catch (e: SQLiteException) {
-            e.printStackTrace()
-        }
-        setMeta(META_FTS_READY, "0")
-    }
-
-    private val useFts: Boolean
-        get() = Settings.FILE_INDEX_ENGINE.valueCompat == ENGINE_FTS4 && FileIndexFts.isSupported
 
     private fun selectFolders(root: String, indexedRoots: List<String>): List<String> {
         val prefix = root.trimEnd('/')
@@ -295,7 +249,6 @@ object FileIndex {
         } catch (e: SQLiteException) {
             e.printStackTrace()
         }
-        dropFts()
         refreshRootsCache()
     }
 
@@ -382,12 +335,6 @@ object FileIndex {
         val estimatedTotal = getEntryCount().coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
         var aborted = false
         var failed = 0
-        var anyDone = false
-        if (useFts) {
-            // Searches use the plain table until the FTS table has been rebuilt.
-            ftsReady = false
-            setMeta(META_FTS_READY, "0")
-        }
         FileIndexNotification.showProgress(0, estimatedTotal, force = true)
         // Plain storage first, elevated roots last: they are the slow and the optional ones.
         for (root in roots.sortedBy { if (needsRoot(it)) 2 else if (isAppDataRoot(it)) 1 else 0 }) {
@@ -405,7 +352,6 @@ object FileIndex {
             }
             when (outcome) {
                 Outcome.DONE -> {
-                    anyDone = true
                     try {
                         db.execSQL(
                             "DELETE FROM entries WHERE root = ? AND scan <> ?",
@@ -440,68 +386,10 @@ object FileIndex {
             }
         }
         refreshRootsCache()
-        if (!aborted && useFts && (anyDone || !ftsReady)) {
-            rebuildFts(db, total)
-        }
         if (aborted) {
             FileIndexNotification.cancel()
         } else {
             FileIndexNotification.showDone(total, failed)
-        }
-    }
-
-    /** Rebuilds the FTS table from the plain table. */
-    private fun rebuildFts(db: SQLiteDatabase, estimatedTotal: Int) {
-        ftsReady = false
-        setMeta(META_FTS_READY, "0")
-        try {
-            db.execSQL("DROP TABLE IF EXISTS ${FileIndexFts.TABLE}")
-            db.execSQL(FileIndexFts.CREATE_SQL)
-            val insert = db.compileStatement(
-                "INSERT INTO ${FileIndexFts.TABLE}(path, tri) VALUES(?, ?)"
-            )
-            var last = ""
-            var done = 0
-            FileIndexNotification.showPreparing(0, estimatedTotal, force = true)
-            while (true) {
-                if (cancelRequested) {
-                    return
-                }
-                val paths = ArrayList<String>(FTS_PAGE)
-                val folds = ArrayList<String>(FTS_PAGE)
-                db.rawQuery(
-                    "SELECT path, fold FROM entries WHERE path > ? ORDER BY path LIMIT $FTS_PAGE",
-                    arrayOf(last)
-                ).use {
-                    while (it.moveToNext()) {
-                        paths += it.getString(0)
-                        folds += it.getString(1)
-                    }
-                }
-                if (paths.isEmpty()) {
-                    break
-                }
-                db.beginTransaction()
-                try {
-                    for (i in paths.indices) {
-                        insert.clearBindings()
-                        insert.bindString(1, paths[i])
-                        insert.bindString(2, FileIndexFts.indexTokens(folds[i]))
-                        insert.executeInsert()
-                    }
-                    db.setTransactionSuccessful()
-                } finally {
-                    db.endTransaction()
-                }
-                last = paths.last()
-                done += paths.size
-                FileIndexNotification.showPreparing(done, estimatedTotal)
-            }
-            setMeta(META_FTS_READY, "1")
-            ftsReady = true
-        } catch (e: Exception) {
-            e.printStackTrace()
-            ftsReady = false
         }
     }
 
@@ -776,7 +664,6 @@ object FileIndex {
             }
             val folded = fold(query)
             val likeArg = "%" + escapeLike(folded) + "%"
-            val match = if (useFts && ftsReady) FileIndexFts.matchQuery(folded) else null
             val results = LinkedHashSet<String>()
             for (folder in searchFolders) {
                 if (results.size >= MAX_RESULTS) {
@@ -785,36 +672,13 @@ object FileIndex {
                 // '0' is the character right after '/', so this is exactly "paths below folder".
                 val low = "$folder/"
                 val high = "${folder}0"
-                var done = false
-                if (match != null) {
-                    try {
-                        // The FTS table narrows the candidates; the LIKE confirms the real match.
-                        db.rawQuery(
-                            "SELECT e.path FROM ${FileIndexFts.TABLE} f " +
-                                "JOIN entries e ON e.path = f.path " +
-                                "WHERE f.tri MATCH ? AND f.path > ? AND f.path < ? " +
-                                "AND e.fold LIKE ? ESCAPE '\\' ORDER BY e.fold LIMIT $MAX_RESULTS",
-                            arrayOf(match, low, high, likeArg)
-                        ).use {
-                            while (it.moveToNext() && results.size < MAX_RESULTS) {
-                                results += it.getString(0)
-                            }
-                        }
-                        done = true
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                        ftsReady = false
-                    }
-                }
-                if (!done) {
-                    db.rawQuery(
-                        "SELECT path FROM entries WHERE path > ? AND path < ? " +
-                            "AND fold LIKE ? ESCAPE '\\' ORDER BY fold LIMIT $MAX_RESULTS",
-                        arrayOf(low, high, likeArg)
-                    ).use {
-                        while (it.moveToNext() && results.size < MAX_RESULTS) {
-                            results += it.getString(0)
-                        }
+                db.rawQuery(
+                    "SELECT path FROM entries WHERE path > ? AND path < ? " +
+                        "AND fold LIKE ? ESCAPE '\\' ORDER BY fold LIMIT $MAX_RESULTS",
+                    arrayOf(low, high, likeArg)
+                ).use {
+                    while (it.moveToNext() && results.size < MAX_RESULTS) {
+                        results += it.getString(0)
                     }
                 }
             }

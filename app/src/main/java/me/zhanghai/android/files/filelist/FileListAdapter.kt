@@ -334,6 +334,15 @@ class FileListAdapter(
             }
         }
         holder.nameText.text = file.name
+        holder.nameText.apply {
+            // A pin badge for pinned items; items hidden by the user (only visible while hidden
+            // files are shown) are dimmed.
+            compoundDrawablePadding = (6 * resources.displayMetrics.density).toInt()
+            setCompoundDrawablesRelativeWithIntrinsicBounds(
+                0, 0, if (FileMarks.isPinned(path)) R.drawable.pin_badge_16dp else 0, 0
+            )
+            alpha = if (FileMarks.isHidden(path)) 0.5f else 1f
+        }
         holder.descriptionText?.text = if (isDirectory) {
             null
         } else {

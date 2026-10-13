@@ -38,13 +38,14 @@ class FileIndexDatabase private constructor(context: Context) :
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        if (oldVersion == 1) {
-            // Version 2 only adds the meta table; keep what was already indexed.
+        if (oldVersion in 1..2) {
+            // Versions 2 and 3 only add the meta table and drop a removed experimental table;
+            // keep what was already indexed.
             createMeta(db)
+            db.execSQL("DROP TABLE IF EXISTS entries_fts")
             return
         }
         // The index is only a cache; rebuild it from scratch.
-        db.execSQL("DROP TABLE IF EXISTS ${FileIndexFts.TABLE}")
         db.execSQL("DROP TABLE IF EXISTS meta")
         db.execSQL("DROP TABLE IF EXISTS entries")
         db.execSQL("DROP TABLE IF EXISTS roots")
@@ -53,7 +54,7 @@ class FileIndexDatabase private constructor(context: Context) :
 
     companion object {
         private const val NAME = "file_index.db"
-        private const val VERSION = 2
+        private const val VERSION = 3
 
         val instance: FileIndexDatabase by lazy { FileIndexDatabase(application) }
 

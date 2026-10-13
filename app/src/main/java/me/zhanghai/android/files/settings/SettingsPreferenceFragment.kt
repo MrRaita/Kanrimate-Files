@@ -11,6 +11,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.Preference
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import me.zhanghai.android.files.fileindex.FileIndex
+import me.zhanghai.android.files.filelist.FileMarks
 import me.zhanghai.android.files.fileindex.FileIndexPrompt
 import me.zhanghai.android.files.fileindex.IndexDiagnosticsDialog
 import me.zhanghai.android.files.filelist.FileListActivity
@@ -41,6 +42,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         addPreferencesFromResource(R.xml.settings)
 
         setUpFileIndexPreferences()
+        setUpHiddenItemsPreference()
         localePreference = preferenceScreen.findPreference(getString(R.string.pref_key_locale))!!
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
             localePreference.setApplicationLocalesPre33 = { locales ->
@@ -97,6 +99,35 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             true
         }
         updateFileIndexSummary()
+    }
+
+    private fun setUpHiddenItemsPreference() {
+        preferenceScreen.findPreference<Preference>(
+            getString(R.string.pref_key_hidden_items)
+        )!!.setOnPreferenceClickListener {
+            showHiddenItemsDialog()
+            true
+        }
+    }
+
+    private fun showHiddenItemsDialog() {
+        val items = FileMarks.hiddenPaths
+        if (items.isEmpty()) {
+            requireContext().showToast(R.string.settings_hidden_items_empty)
+            return
+        }
+        // Checked items stay hidden; unchecking one and pressing OK shows it again.
+        val checked = BooleanArray(items.size) { true }
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.settings_hidden_items_title)
+            .setMultiChoiceItems(items.toTypedArray(), checked) { _, which, isChecked ->
+                checked[which] = isChecked
+            }
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                FileMarks.unhide(items.filterIndexed { index, _ -> !checked[index] })
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun updateFileIndexSummary() {

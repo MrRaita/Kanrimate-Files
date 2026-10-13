@@ -26,7 +26,9 @@ object SelectionActions {
         Info("share", R.string.share, Placement.MENU),
         Info("select_all", R.string.select_all, Placement.MENU),
         Info("select_inverse", R.string.file_list_select_action_invert, Placement.MENU),
-        Info("copy_path", R.string.file_list_action_copy_path, Placement.MENU)
+        Info("copy_path", R.string.file_list_action_copy_path, Placement.MENU),
+        Info("pin", R.string.file_list_select_action_pin, Placement.MENU),
+        Info("hide", R.string.file_list_select_action_hide, Placement.MENU)
     )
 
     fun info(id: String): Info? = all.firstOrNull { it.id == id }

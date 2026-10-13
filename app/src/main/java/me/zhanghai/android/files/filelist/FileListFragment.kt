@@ -67,6 +67,7 @@ import me.zhanghai.android.files.databinding.FileListFragmentContentIncludeBindi
 import me.zhanghai.android.files.databinding.FileListFragmentIncludeBinding
 import me.zhanghai.android.files.databinding.FileListFragmentSpeedDialIncludeBinding
 import me.zhanghai.android.files.file.FileItem
+import me.zhanghai.android.files.recent.RecentFiles
 import me.zhanghai.android.files.file.MimeType
 import me.zhanghai.android.files.file.asMimeTypeOrNull
 import me.zhanghai.android.files.file.extension
@@ -395,6 +396,11 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         viewModel.fileListLiveData.observe(viewLifecycleOwner) { onFileListChanged(it) }
         Settings.FILE_LIST_SHOW_HIDDEN_FILES.observe(viewLifecycleOwner) {
             onShowHiddenFilesChanged(it)
+        }
+        FileMarks.changed.observe(viewLifecycleOwner) {
+            updateAdapterFileList()
+            // The list contents are equal, so rebind the rows to refresh the pin badges.
+            adapter.notifyItemRangeChanged(0, adapter.itemCount)
         }
     }
 
@@ -920,7 +926,12 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
     private fun updateAdapterFileList() {
         var files = viewModel.fileListStateful.value ?: return
         if (!Settings.FILE_LIST_SHOW_HIDDEN_FILES.valueCompat) {
-            files = files.filterNot { it.isHidden }
+            val isSearching = viewModel.searchState.isSearching
+            files = files.filterNot {
+                // In search results, things inside a hidden folder are hidden too.
+                it.isHidden ||
+                    if (isSearching) FileMarks.isHiddenDeep(it.path) else FileMarks.isHidden(it.path)
+            }
         }
         adapter.replaceListAndIsSearching(files, viewModel.searchState.isSearching)
     }
@@ -958,6 +969,9 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         collapseSearchView()
         val state = layoutManager.onSaveInstanceState()
         viewModel.navigateTo(state!!, path)
+        if (path.isLinuxPath) {
+            AppExecutors.io.execute { RecentFiles.addFolder(path.toString()) }
+        }
     }
 
     override fun copyPath(path: Path) {
@@ -1166,6 +1180,26 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
                     itemId = R.id.action_copy_path; titleRes = R.string.file_list_action_copy_path
                     iconRes = R.drawable.selection_copy_path_icon_24dp; visible = true
                 }
+                "pin" -> {
+                    val allPinned = viewModel.selectedFiles.all { FileMarks.isPinned(it.path) }
+                    itemId = R.id.action_pin
+                    titleRes = if (allPinned) {
+                        R.string.file_list_select_action_unpin
+                    } else {
+                        R.string.file_list_select_action_pin
+                    }
+                    iconRes = R.drawable.selection_pin_icon_24dp; visible = true
+                }
+                "hide" -> {
+                    val allHidden = viewModel.selectedFiles.all { FileMarks.isHidden(it.path) }
+                    itemId = R.id.action_hide
+                    titleRes = if (allHidden) {
+                        R.string.file_list_select_action_unhide
+                    } else {
+                        R.string.file_list_select_action_hide
+                    }
+                    iconRes = R.drawable.selection_hide_icon_24dp; visible = true
+                }
                 else -> return@forEachIndexed
             }
             val menuItem = menu.add(Menu.NONE, itemId, index, titleRes)
@@ -1221,6 +1255,23 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
             }
             R.id.action_select_inverse -> {
                 adapter.invertSelection(viewModel.selectedFiles)
+                true
+            }
+            R.id.action_pin -> {
+                val files = viewModel.selectedFiles
+                val allPinned = files.all { FileMarks.isPinned(it.path) }
+                FileMarks.setPinned(files.map { it.path }, !allPinned)
+                viewModel.selectFiles(files, false)
+                true
+            }
+            R.id.action_hide -> {
+                val files = viewModel.selectedFiles
+                val allHidden = files.all { FileMarks.isHidden(it.path) }
+                FileMarks.setHidden(files.map { it.path }, !allHidden)
+                viewModel.selectFiles(files, false)
+                if (!allHidden && !Settings.FILE_LIST_SHOW_HIDDEN_FILES.valueCompat) {
+                    requireContext().showToast(R.string.file_list_hide_toast)
+                }
                 true
             }
             R.id.action_copy_path -> {
@@ -1537,6 +1588,9 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
     private fun openFileWithIntent(file: FileItem, withChooser: Boolean) {
         val path = file.path
         val mimeType = file.mimeType
+        if (path.isLinuxPath) {
+            AppExecutors.io.execute { RecentFiles.addFile(path.toString()) }
+        }
         if (path.isArchivePath) {
             FileJobService.open(path, mimeType, withChooser, requireContext())
         } else {

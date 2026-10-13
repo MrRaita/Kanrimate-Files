@@ -12,7 +12,6 @@
         android:paddingBottom="8dp">
 
         <TextView
-            android:id="@+id/appDataHeader"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/file_index_options_app_data_header"
@@ -37,31 +36,11 @@
             android:text="@string/file_index_options_root_header"
             android:textAppearance="?attr/textAppearanceSubtitle2" />
 
-        <RadioGroup
-            android:id="@+id/rootGroup"
+        <CheckBox
+            android:id="@+id/rootCheck"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <RadioButton
-                android:id="@+id/rootOff"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
-
-            <RadioButton
-                android:id="@+id/rootDirs"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
-
-            <RadioButton
-                android:id="@+id/rootUser"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
-
-            <RadioButton
-                android:id="@+id/rootAll"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
-        </RadioGroup>
+            android:layout_height="wrap_content"
+            android:text="@string/file_index_options_root_mode" />
 
         <TextView
             android:id="@+id/rootNote"
@@ -69,33 +48,28 @@
             android:layout_height="wrap_content"
             android:textAppearance="?attr/textAppearanceCaption" />
 
-        <TextView
+        <LinearLayout
+            android:id="@+id/rootOptions"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:text="@string/file_index_options_engine_header"
-            android:textAppearance="?attr/textAppearanceSubtitle2" />
+            android:layout_marginStart="16dp"
+            android:orientation="vertical"
+            android:visibility="gone">
 
-        <RadioGroup
-            android:id="@+id/engineGroup"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <RadioButton
-                android:id="@+id/engineLike"
+            <CheckBox
+                android:id="@+id/rootDirsCheck"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
 
-            <RadioButton
-                android:id="@+id/engineFts"
+            <CheckBox
+                android:id="@+id/rootUserCheck"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
-        </RadioGroup>
 
-        <TextView
-            android:id="@+id/engineNote"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textAppearance="?attr/textAppearanceCaption" />
+            <CheckBox
+                android:id="@+id/rootAllCheck"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+        </LinearLayout>
     </LinearLayout>
 </ScrollView>

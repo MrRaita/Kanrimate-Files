@@ -149,6 +149,11 @@
             android:key="@string/pref_key_read_remote_files_for_thumbnail"
             android:title="@string/settings_read_remote_files_for_thumbnail_title"
             android:defaultValue="@bool/pref_default_value_read_remote_files_for_thumbnail" />
+
+        <Preference
+            android:key="@string/pref_key_hidden_items"
+            android:title="@string/settings_hidden_items_title"
+            android:summary="@string/settings_hidden_items_summary" />
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/settings_search_return_title">

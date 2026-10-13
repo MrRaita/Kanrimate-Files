@@ -190,6 +190,10 @@
             android:theme="@style/Theme.MaterialFiles.Translucent" />
 
         <activity
+            android:name="me.zhanghai.android.files.recent.RecentActivity"
+            android:label="@string/recent_title" />
+
+        <activity
             android:name="me.zhanghai.android.files.filelist.OpenFileAsDialogActivity"
             android:autoRemoveFromRecents="true"
             android:icon="@drawable/open_as_icon"

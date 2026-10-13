@@ -41,7 +41,8 @@ data class FileSortOptions(
                 .reversedCompat()
             comparator = isDirectoryComparator.then(comparator)
         }
-        return comparator
+        // Pinned items stay on top whatever the sort order is.
+        return compareBy<FileItem> { !FileMarks.isPinned(it.path) }.then(comparator)
     }
 
     companion object {

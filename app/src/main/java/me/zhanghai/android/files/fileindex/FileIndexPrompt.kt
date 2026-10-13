@@ -10,9 +10,8 @@ import android.text.SpannableString
 import android.text.Spanned
 import android.text.style.RelativeSizeSpan
 import android.view.LayoutInflater
+import android.view.View
 import android.widget.CheckBox
-import android.widget.RadioButton
-import android.widget.RadioGroup
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -133,10 +132,9 @@ object FileIndexPrompt {
     ) {
         AppExecutors.io.execute {
             val access = detectAccess()
-            val ftsSupported = FileIndexFts.isSupported
             activity.runOnUiThread {
                 if (!activity.isFinishing && !activity.isDestroyed) {
-                    showOptionsDialog(activity, addStorageRoot, access, ftsSupported, onDone)
+                    showOptionsDialog(activity, addStorageRoot, access, onDone)
                 }
             }
         }
@@ -146,16 +144,17 @@ object FileIndexPrompt {
         activity: AppCompatActivity,
         addStorageRoot: Boolean,
         access: Access,
-        ftsSupported: Boolean,
         onDone: (() -> Unit)?
     ) {
         val view = LayoutInflater.from(activity).inflate(R.layout.file_index_options_dialog, null)
         val appDataCheck = view.findViewById<CheckBox>(R.id.appDataCheck)
         val appDataNote = view.findViewById<TextView>(R.id.appDataNote)
-        val rootGroup = view.findViewById<RadioGroup>(R.id.rootGroup)
+        val rootCheck = view.findViewById<CheckBox>(R.id.rootCheck)
         val rootNote = view.findViewById<TextView>(R.id.rootNote)
-        val engineGroup = view.findViewById<RadioGroup>(R.id.engineGroup)
-        val engineNote = view.findViewById<TextView>(R.id.engineNote)
+        val rootOptions = view.findViewById<View>(R.id.rootOptions)
+        val dirsCheck = view.findViewById<CheckBox>(R.id.rootDirsCheck)
+        val userCheck = view.findViewById<CheckBox>(R.id.rootUserCheck)
+        val allCheck = view.findViewById<CheckBox>(R.id.rootAllCheck)
 
         // Shizuku / app data.
         val appDataPossible = access.shizuku || access.root
@@ -169,28 +168,25 @@ object FileIndexPrompt {
             }
         )
 
-        // Root levels.
-        val levels = listOf(
-            Triple(R.id.rootOff, R.string.file_index_options_root_off,
-                R.string.file_index_options_root_off_description),
-            Triple(R.id.rootDirs, R.string.file_index_options_root_dirs,
-                R.string.file_index_options_root_dirs_description),
-            Triple(R.id.rootUser, R.string.file_index_options_root_user,
-                R.string.file_index_options_root_user_description),
-            Triple(R.id.rootAll, R.string.file_index_options_root_all,
-                R.string.file_index_options_root_all_description)
+        // Root mode: one switch that opens the three independent choices below it.
+        dirsCheck.text = describe(
+            activity, R.string.file_index_options_root_dirs,
+            R.string.file_index_options_root_dirs_description
         )
-        for ((index, level) in levels.withIndex()) {
-            val button = view.findViewById<RadioButton>(level.first)
-            button.text = describe(activity, level.second, level.third)
-            button.isEnabled = index == 0 || access.root
-        }
-        val currentLevel = if (access.root) {
-            Settings.FILE_INDEX_ROOT_LEVEL.valueCompat.coerceIn(0, levels.size - 1)
-        } else {
-            0
-        }
-        rootGroup.check(levels[currentLevel].first)
+        userCheck.text = describe(
+            activity, R.string.file_index_options_root_user,
+            R.string.file_index_options_root_user_description
+        )
+        allCheck.text = describe(
+            activity, R.string.file_index_options_root_all,
+            R.string.file_index_options_root_all_description
+        )
+        val mask = if (access.root) Settings.FILE_INDEX_ROOT_MASK.valueCompat else 0
+        rootCheck.isEnabled = access.root
+        rootCheck.isChecked = mask != 0
+        dirsCheck.isChecked = mask and FileIndex.ROOT_DIRS != 0
+        userCheck.isChecked = mask and FileIndex.ROOT_USER_DATA != 0
+        allCheck.isChecked = mask and FileIndex.ROOT_ALL != 0
         rootNote.setText(
             if (access.root) {
                 R.string.file_index_options_root_available
@@ -199,51 +195,48 @@ object FileIndexPrompt {
             }
         )
 
-        // Engine.
-        val likeButton = view.findViewById<RadioButton>(R.id.engineLike)
-        val ftsButton = view.findViewById<RadioButton>(R.id.engineFts)
-        likeButton.text = describe(
-            activity, R.string.file_index_options_engine_like,
-            R.string.file_index_options_engine_like_description
-        )
-        ftsButton.text = describe(
-            activity, R.string.file_index_options_engine_fts,
-            R.string.file_index_options_engine_fts_description
-        )
-        ftsButton.isEnabled = ftsSupported
-        engineGroup.check(
-            if (ftsSupported &&
-                Settings.FILE_INDEX_ENGINE.valueCompat == FileIndex.ENGINE_FTS4) {
-                R.id.engineFts
-            } else {
-                R.id.engineLike
+        // "All folders" includes the other two, so they are shown checked and greyed out.
+        fun updateRootViews() {
+            rootOptions.visibility = if (rootCheck.isChecked) View.VISIBLE else View.GONE
+            val all = allCheck.isChecked
+            dirsCheck.isEnabled = !all
+            userCheck.isEnabled = !all
+            if (all) {
+                dirsCheck.isChecked = true
+                userCheck.isChecked = true
             }
-        )
-        engineNote.setText(
-            if (ftsSupported) {
-                R.string.file_index_options_engine_fts_note
-            } else {
-                R.string.file_index_options_engine_unsupported
+        }
+        updateRootViews()
+        rootCheck.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked && !dirsCheck.isChecked && !userCheck.isChecked && !allCheck.isChecked) {
+                dirsCheck.isChecked = true
             }
-        )
+            updateRootViews()
+        }
+        allCheck.setOnCheckedChangeListener { _, _ -> updateRootViews() }
+
+        fun selectedMask(): Int {
+            if (!rootCheck.isChecked) {
+                return 0
+            }
+            return when {
+                allCheck.isChecked -> FileIndex.ROOT_ALL
+                else ->
+                    (if (dirsCheck.isChecked) FileIndex.ROOT_DIRS else 0) or
+                        (if (userCheck.isChecked) FileIndex.ROOT_USER_DATA else 0)
+            }
+        }
 
         fun apply() {
             val appData = appDataCheck.isChecked
-            val level = levels.indexOfFirst { it.first == rootGroup.checkedRadioButtonId }
-                .coerceAtLeast(0)
-            val engine = if (engineGroup.checkedRadioButtonId == R.id.engineFts) {
-                FileIndex.ENGINE_FTS4
-            } else {
-                FileIndex.ENGINE_LIKE
-            }
+            val newMask = selectedMask()
             Settings.FILE_INDEX_ENABLED.putValue(true)
             Settings.FILE_INDEX_APP_DATA.putValue(appData)
-            Settings.FILE_INDEX_ROOT_LEVEL.putValue(level)
+            Settings.FILE_INDEX_ROOT_MASK.putValue(newMask)
             AppExecutors.io.execute {
                 if (addStorageRoot) {
                     FileIndex.addRoot(Environment.getExternalStorageDirectory().path)
                 }
-                FileIndex.applyEngine(engine)
                 FileIndex.applyScope()
                 FileIndex.startScan(force = true)
             }
@@ -260,21 +253,14 @@ object FileIndexPrompt {
                     R.string.file_index_options_apply
                 }
             ) { _, _ ->
-                val warnings = mutableListOf<Int>()
-                if (rootGroup.checkedRadioButtonId == R.id.rootAll &&
-                    Settings.FILE_INDEX_ROOT_LEVEL.valueCompat != FileIndex.ROOT_LEVEL_ALL) {
-                    warnings += R.string.file_index_options_confirm_all
-                }
-                if (engineGroup.checkedRadioButtonId == R.id.engineFts &&
-                    Settings.FILE_INDEX_ENGINE.valueCompat != FileIndex.ENGINE_FTS4) {
-                    warnings += R.string.file_index_options_confirm_fts
-                }
-                if (warnings.isEmpty()) {
+                val newlyAll = selectedMask() == FileIndex.ROOT_ALL &&
+                    Settings.FILE_INDEX_ROOT_MASK.valueCompat != FileIndex.ROOT_ALL
+                if (!newlyAll) {
                     apply()
                 } else {
                     MaterialAlertDialogBuilder(activity)
                         .setTitle(R.string.file_index_options_confirm_title)
-                        .setMessage(warnings.joinToString("\n\n") { activity.getString(it) })
+                        .setMessage(R.string.file_index_options_confirm_all)
                         .setPositiveButton(R.string.file_index_options_confirm_continue) { _, _ ->
                             apply()
                         }
