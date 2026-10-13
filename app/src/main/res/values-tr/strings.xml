@@ -925,7 +925,7 @@
     <string name="file_list_select_action_unpin">Sabitlemeyi kaldır</string>
     <string name="file_list_select_action_hide">Gizle</string>
     <string name="file_list_select_action_unhide">Gizlemeyi kaldır</string>
-    <string name="file_list_hide_toast">Gizlendi. Görmek için "Gizli dosyaları göster"i aç.</string>
+    <string name="file_list_hide_toast">Gizlendi. Görmek için \"Gizli dosyaları göster\"i aç.</string>
     <string name="settings_hidden_items_title">Gizlenen öğeler</string>
     <string name="settings_hidden_items_summary">Uygulama içinde gizlediğin dosya ve klasörler</string>
     <string name="settings_hidden_items_empty">Gizlenmiş öğe yok</string>
@@ -935,5 +935,5 @@
     <string name="recent_folders">Son gezilen klasörler</string>
     <string name="recent_empty">Henüz bir şey yok. Açtığın dosyalar ve gezdiğin klasörler burada görünür.</string>
     <string name="recent_clear">Geçmişi temizle</string>
-    <string name="file_index_options_strategy_note">Uygulamadaki root erişim ayarı "Hiçbir zaman" ise "Otomatik" olarak değiştirilir.</string>
+    <string name="file_index_options_strategy_note">Uygulamadaki root erişim ayarı \"Hiçbir zaman\" ise \"Otomatik\" olarak değiştirilir.</string>
 </resources>

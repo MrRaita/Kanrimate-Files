@@ -1075,7 +1075,7 @@
     <string name="file_list_select_action_unpin">Unpin</string>
     <string name="file_list_select_action_hide">Hide</string>
     <string name="file_list_select_action_unhide">Unhide</string>
-    <string name="file_list_hide_toast">Hidden. Turn on "Show hidden files" to see it.</string>
+    <string name="file_list_hide_toast">Hidden. Turn on \"Show hidden files\" to see it.</string>
     <string name="settings_hidden_items_title">Hidden items</string>
     <string name="settings_hidden_items_summary">Files and folders you hid inside this app</string>
     <string name="settings_hidden_items_empty">No hidden items</string>
@@ -1085,5 +1085,5 @@
     <string name="recent_folders">Recently visited folders</string>
     <string name="recent_empty">Nothing yet. Files you open and folders you visit show up here.</string>
     <string name="recent_clear">Clear history</string>
-    <string name="file_index_options_strategy_note">If the app's root access setting is "Never", it is changed to "Automatic".</string>
+    <string name="file_index_options_strategy_note">If the app\'s root access setting is set to \"Never\", it is changed to \"Automatic\".</string>
 </resources>
