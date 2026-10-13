@@ -44,6 +44,8 @@ object FileIndex {
     private const val BATCH_SIZE = 1000
     private const val BATTERY_CHECK_EVERY_BATCHES = 20
     private const val MIN_BATTERY_PERCENT = 20
+    /** The scan stops instead of filling the phone's storage. */
+    private const val MIN_FREE_BYTES = 150L * 1024 * 1024
     private const val REFRESH_AFTER_MILLIS = 12L * 60 * 60 * 1000
     private const val MAX_RESULTS = 5000
 
@@ -119,8 +121,16 @@ object FileIndex {
     private fun isAppDataRoot(root: String): Boolean =
         root.endsWith("/Android/data") || root.endsWith("/Android/obb")
 
-    private fun needsRoot(root: String): Boolean =
-        root == "/" || root == "/data" || root.startsWith("/data/")
+    /**
+     * The only roots that are ever listed through su. Anything else, even below /data, is a
+     * folder the user picked and is read like any other folder, never as root.
+     */
+    private val ROOT_ALLOWED = setOf(
+        "/", "/data/adb", "/data/local/tmp", "/data/local", "/data/data", "/data/app",
+        "/data/user_de"
+    )
+
+    private fun needsRoot(root: String): Boolean = root in ROOT_ALLOWED
 
     /** Roots that the scope settings manage; everything else was picked by the user. */
     private fun isManagedRoot(root: String): Boolean = isAppDataRoot(root) || needsRoot(root)
@@ -285,16 +295,35 @@ object FileIndex {
         cancelRequested = true
     }
 
+    @Volatile
+    private var rescanPending = false
+
+    @Volatile
+    private var rescanForce = false
+
     /** @param force ignore the battery and power saving checks (user asked for it) */
     fun startScan(force: Boolean) {
         if (!scanning.compareAndSet(false, true)) {
+            // A scan is still winding down (for example it was just cancelled): run again after.
+            rescanForce = rescanForce || force
+            rescanPending = true
             return
         }
         cancelRequested = false
         Thread({
             try {
                 Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND)
-                scanAllRoots(force)
+                var runForce = force
+                while (true) {
+                    scanAllRoots(runForce)
+                    if (!rescanPending) {
+                        break
+                    }
+                    rescanPending = false
+                    runForce = rescanForce
+                    rescanForce = false
+                    cancelRequested = false
+                }
             } catch (e: Throwable) {
                 e.printStackTrace()
             } finally {
@@ -303,7 +332,17 @@ object FileIndex {
         }, "FileIndex.Scan").start()
     }
 
+    private fun hasFreeSpace(): Boolean =
+        try {
+            application.filesDir.usableSpace >= MIN_FREE_BYTES
+        } catch (e: Exception) {
+            true
+        }
+
     private fun canScanNow(force: Boolean): Boolean {
+        if (!hasFreeSpace()) {
+            return false
+        }
         if (force) {
             return true
         }
@@ -336,6 +375,8 @@ object FileIndex {
         val estimatedTotal = getEntryCount().coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
         var aborted = false
         var failed = 0
+        refreshRootsCache()
+        val scannedBefore = rootsCache.orEmpty().map { it.path }.toSet()
         FileIndexNotification.showProgress(0, estimatedTotal, force = true)
         // Plain storage first, elevated roots last: they are the slow and the optional ones.
         for (root in roots.sortedBy { if (needsRoot(it)) 2 else if (isAppDataRoot(it)) 1 else 0 }) {
@@ -343,8 +384,13 @@ object FileIndex {
                 aborted = true
                 break
             }
-            val scanId = System.currentTimeMillis()
             val elevated = needsRoot(root)
+            // A background refresh never asks for Shizuku/root permission for a root that has
+            // not been scanned successfully before; that only happens when the user starts it.
+            if (!force && (elevated || isAppDataRoot(root)) && root !in scannedBefore) {
+                continue
+            }
+            val scanId = System.currentTimeMillis()
             val budget = if (elevated) MAX_ROOT_ENTRIES - rootTotal else MAX_ENTRIES - normalTotal
             val outcome = scanRoot(db, root, scanId, force, budget) {
                 total += it
@@ -587,7 +633,7 @@ object FileIndex {
             "find -H / \\( " + skipped.joinToString(" -o ") { "-path $it" } +
                 " \\) -prune -o -print 2>/dev/null"
         } else {
-            "find -H '$root' 2>/dev/null"
+            "find -H '" + root.replace("'", "'\\''") + "' 2>/dev/null"
         }
 
     /**
@@ -611,6 +657,24 @@ object FileIndex {
                 return false
             }
             var lines = 0
+            // Reading blocks while su waits for the user's permission answer, so something else
+            // has to be able to stop the process when the scan is cancelled.
+            val finished = AtomicBoolean(false)
+            val watcher = Thread({
+                while (!finished.get()) {
+                    if (cancelRequested) {
+                        process.destroy()
+                        break
+                    }
+                    try {
+                        Thread.sleep(300)
+                    } catch (e: InterruptedException) {
+                        break
+                    }
+                }
+            }, "FileIndex.SuWatch")
+            watcher.isDaemon = true
+            watcher.start()
             try {
                 process.outputStream.close()
                 process.inputStream.bufferedReader().use { reader ->
@@ -626,6 +690,8 @@ object FileIndex {
                     }
                 }
             } finally {
+                finished.set(true)
+                watcher.interrupt()
                 // Closing the pipe makes find stop at its next write.
                 process.destroy()
             }

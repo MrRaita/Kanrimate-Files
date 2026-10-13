@@ -17,6 +17,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import me.zhanghai.android.files.R
 import me.zhanghai.android.files.provider.root.LibSuFileServiceLauncher
+import me.zhanghai.android.files.provider.root.RootStrategy
 import me.zhanghai.android.files.provider.root.ShizukuFileServiceLauncher
 import me.zhanghai.android.files.util.AppExecutors
 import java.io.File
@@ -160,13 +161,18 @@ object FileIndexPrompt {
         val appDataPossible = access.shizuku || access.root
         appDataCheck.isEnabled = appDataPossible
         appDataCheck.isChecked = appDataPossible && Settings.FILE_INDEX_APP_DATA.valueCompat
-        appDataNote.setText(
+        var appDataNoteText = activity.getString(
             when {
                 access.shizuku -> R.string.file_index_options_app_data_shizuku_ready
                 access.root -> R.string.file_index_options_app_data_root_only
                 else -> R.string.file_index_options_app_data_unavailable
             }
         )
+        if (Settings.ROOT_STRATEGY.valueCompat == RootStrategy.NEVER) {
+            // Applying these options switches the root setting, so say so before it happens.
+            appDataNoteText += "\n" + activity.getString(R.string.file_index_options_strategy_note)
+        }
+        appDataNote.text = appDataNoteText
 
         // Root mode: one switch that opens the three independent choices below it.
         dirsCheck.text = describe(

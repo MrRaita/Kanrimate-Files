@@ -1085,4 +1085,5 @@
     <string name="recent_folders">Recently visited folders</string>
     <string name="recent_empty">Nothing yet. Files you open and folders you visit show up here.</string>
     <string name="recent_clear">Clear history</string>
+    <string name="file_index_options_strategy_note">If the app's root access setting is "Never", it is changed to "Automatic".</string>
 </resources>

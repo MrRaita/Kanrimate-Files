@@ -935,4 +935,5 @@
     <string name="recent_folders">Son gezilen klasörler</string>
     <string name="recent_empty">Henüz bir şey yok. Açtığın dosyalar ve gezdiğin klasörler burada görünür.</string>
     <string name="recent_clear">Geçmişi temizle</string>
+    <string name="file_index_options_strategy_note">Uygulamadaki root erişim ayarı "Hiçbir zaman" ise "Otomatik" olarak değiştirilir.</string>
 </resources>
