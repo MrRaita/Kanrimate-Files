@@ -19,8 +19,8 @@ import java8.nio.file.attribute.BasicFileAttributes
 import me.zhanghai.android.files.settings.Settings
 import me.zhanghai.android.files.util.valueCompat
 import me.zhanghai.android.files.app.application
-import me.zhanghai.android.files.provider.root.LibSuFileServiceLauncher
 import me.zhanghai.android.files.provider.root.ShizukuFileServiceLauncher
+import me.zhanghai.android.files.provider.root.SuBinary
 import rikka.shizuku.Shizuku
 import java.io.File
 import java.io.IOException
@@ -47,8 +47,7 @@ object IndexDiagnostics {
             db.close()
         }
         lines += "Shizuku: ${shizukuState()}"
-        lines += "Root (su binary): " +
-            if (LibSuFileServiceLauncher.isSuAvailable()) "found" else "not found"
+        lines += "Root (su binary): " + (SuBinary.find() ?: "not found")
         return lines
     }
 
@@ -189,18 +188,40 @@ object IndexDiagnostics {
         stats.millis = SystemClock.elapsedRealtime() - start
     }
 
-    /** Streams `find` output run through su, which is the fastest way to list a tree as root. */
-    private fun walkWithSuFind(directories: List<String>, stats: WalkStats, bench: BenchDb) {
+    /**
+     * Streams `find` output run through su, which is the fastest way to list a tree as root.
+     * With [mountMaster] su runs in the global mount namespace; without it su inherits the app's
+     * own namespace, where other apps' data folders are hidden.
+     *
+     * @param bench where to store what is found, or null to only count
+     */
+    private fun walkWithSuFind(
+        directories: List<String>,
+        mountMaster: Boolean,
+        stats: WalkStats,
+        bench: BenchDb?
+    ) {
         val start = SystemClock.elapsedRealtime()
         val deadline = start + PHASE_MAX_MILLIS
         val command = "find -H " + directories.joinToString(" ") { "'$it'" } + " 2>/dev/null"
+        val su = SuBinary.find()
+        if (su == null) {
+            stats.errors++
+            return
+        }
+        val arguments = if (mountMaster) {
+            arrayOf(su, "--mount-master", "-c", command)
+        } else {
+            arrayOf(su, "-c", command)
+        }
         val process = try {
-            Runtime.getRuntime().exec(arrayOf("su", "-c", command))
+            Runtime.getRuntime().exec(arguments)
         } catch (e: IOException) {
             stats.errors++
             return
         }
         try {
+            process.outputStream.close()
             process.inputStream.bufferedReader().use { reader ->
                 while (!cancelRequested && stats.entries < PHASE_MAX_ENTRIES &&
                     SystemClock.elapsedRealtime() < deadline) {
@@ -209,7 +230,7 @@ object IndexDiagnostics {
                         continue
                     }
                     stats.entries++
-                    bench.add(line)
+                    bench?.add(line)
                 }
             }
         } finally {
@@ -266,15 +287,20 @@ object IndexDiagnostics {
             }
 
             log("Step 3: root folders (safe list)")
-            if (!LibSuFileServiceLauncher.isSuAvailable()) {
-                log("  su not found, skipped")
+            if (SuBinary.find() == null) {
+                log("  su not found at an absolute path, skipped")
             } else {
                 val safe = listOf("/data/adb", "/data/data", "/data/app", "/data/local")
+                // Without --mount-master su sees only this app's own view of /data; counted
+                // separately to show the difference.
+                val plainStats = WalkStats()
+                walkWithSuFind(safe, false, plainStats, null)
+                logWalk("  su -c find (app mount namespace)", plainStats, log)
                 val findStats = WalkStats()
-                walkWithSuFind(safe, findStats, bench)
-                logWalk("  su find ${safe.joinToString(" ")}", findStats, log)
+                walkWithSuFind(safe, true, findStats, bench)
+                logWalk("  su --mount-master -c find ${safe.joinToString(" ")}", findStats, log)
                 if (findStats.entries == 0) {
-                    log("  (no output: root permission may have been refused)")
+                    log("  (no output: root permission may have been refused, or --mount-master is not supported)")
                 }
                 if (cancelRequested) {
                     return

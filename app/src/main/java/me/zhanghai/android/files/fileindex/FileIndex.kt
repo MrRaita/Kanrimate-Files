@@ -25,6 +25,7 @@ import java8.nio.file.Path
 import java8.nio.file.Paths
 import java8.nio.file.attribute.BasicFileAttributes
 import me.zhanghai.android.files.provider.root.RootStrategy
+import me.zhanghai.android.files.provider.root.SuBinary
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
@@ -598,9 +599,10 @@ object FileIndex {
      */
     private fun walkWithRootFind(root: String, sink: Sink): Boolean {
         val command = findCommand(root)
+        val su = SuBinary.find() ?: return false
         val attempts = listOf(
-            arrayOf("su", "--mount-master", "-c", command),
-            arrayOf("su", "-c", command)
+            arrayOf(su, "--mount-master", "-c", command),
+            arrayOf(su, "-c", command)
         )
         for (arguments in attempts) {
             val process = try {
