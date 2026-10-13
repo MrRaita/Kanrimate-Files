@@ -30,10 +30,22 @@ class FileIndexDatabase private constructor(context: Context) :
             "CREATE TABLE entries (path TEXT PRIMARY KEY NOT NULL, fold TEXT NOT NULL, " +
                 "root TEXT NOT NULL, scan INTEGER NOT NULL) WITHOUT ROWID"
         )
+        createMeta(db)
+    }
+
+    private fun createMeta(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY NOT NULL, value TEXT)")
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion == 1) {
+            // Version 2 only adds the meta table; keep what was already indexed.
+            createMeta(db)
+            return
+        }
         // The index is only a cache; rebuild it from scratch.
+        db.execSQL("DROP TABLE IF EXISTS ${FileIndexFts.TABLE}")
+        db.execSQL("DROP TABLE IF EXISTS meta")
         db.execSQL("DROP TABLE IF EXISTS entries")
         db.execSQL("DROP TABLE IF EXISTS roots")
         onCreate(db)
@@ -41,7 +53,7 @@ class FileIndexDatabase private constructor(context: Context) :
 
     companion object {
         private const val NAME = "file_index.db"
-        private const val VERSION = 1
+        private const val VERSION = 2
 
         val instance: FileIndexDatabase by lazy { FileIndexDatabase(application) }
 

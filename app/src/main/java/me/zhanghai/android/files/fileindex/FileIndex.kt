@@ -10,6 +10,7 @@ import android.content.IntentFilter
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteException
 import android.os.BatteryManager
+import android.os.Environment
 import android.os.Process
 import android.system.ErrnoException
 import android.system.Os
@@ -18,7 +19,14 @@ import me.zhanghai.android.files.app.application
 import me.zhanghai.android.files.app.powerManager
 import me.zhanghai.android.files.settings.Settings
 import me.zhanghai.android.files.util.valueCompat
+import java8.nio.file.Files
+import java8.nio.file.LinkOption
+import java8.nio.file.Path
+import java8.nio.file.Paths
+import java8.nio.file.attribute.BasicFileAttributes
+import me.zhanghai.android.files.provider.root.RootStrategy
 import java.io.File
+import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -31,6 +39,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 object FileIndex {
     private const val MAX_ENTRIES = 1_000_000
+    private const val MAX_ROOT_ENTRIES = 3_000_000
     private const val BATCH_SIZE = 1000
     private const val BATTERY_CHECK_EVERY_BATCHES = 20
     private const val MIN_BATTERY_PERCENT = 20
@@ -38,6 +47,20 @@ object FileIndex {
     private const val MAX_RESULTS = 5000
 
     private const val STALE_AFTER_MILLIS = 30L * 60 * 1000
+
+    const val ENGINE_LIKE = 0
+    const val ENGINE_FTS4 = 1
+
+    const val ROOT_LEVEL_OFF = 0
+    /** Module sources and logs (/data/adb, /data/local/tmp). */
+    const val ROOT_LEVEL_ROOT_DIRS = 1
+    /** The above plus app data and app code. */
+    const val ROOT_LEVEL_USER_DATA = 2
+    /** Everything except virtual and duplicate mounts. */
+    const val ROOT_LEVEL_ALL = 3
+
+    private const val META_FTS_READY = "fts_ready"
+    private const val FTS_PAGE = 5000
 
     /** Result of an index lookup. [paths] is null when the index was not used. */
     class SearchResult(val paths: List<String>?, val failed: Boolean = false)
@@ -49,6 +72,10 @@ object FileIndex {
     private var rootsCache: List<IndexedRoot>? = null
 
     private val scanning = AtomicBoolean(false)
+
+    /** Whether the FTS table is complete for the current entries. */
+    @Volatile
+    private var ftsReady = false
 
     @Volatile
     private var cancelRequested = false
@@ -87,11 +114,101 @@ object FileIndex {
                 }
             }
             rootsCache = roots
+            ftsReady = getMeta(META_FTS_READY) == "1"
         } catch (e: SQLiteException) {
             e.printStackTrace()
             rootsCache = null
         }
     }
+
+    private fun getMeta(key: String): String? =
+        try {
+            database().rawQuery("SELECT value FROM meta WHERE key = ?", arrayOf(key)).use {
+                if (it.moveToFirst()) it.getString(0) else null
+            }
+        } catch (e: SQLiteException) {
+            null
+        }
+
+    private fun setMeta(key: String, value: String) {
+        try {
+            database().execSQL(
+                "INSERT OR REPLACE INTO meta(key, value) VALUES(?, ?)", arrayOf<Any>(key, value)
+            )
+        } catch (e: SQLiteException) {
+            e.printStackTrace()
+        }
+    }
+
+    // --- Scope: which extra roots (app data through Shizuku/root, root folders) are indexed ---
+
+    private fun storageRoot(): String =
+        normalizeRoot(Environment.getExternalStorageDirectory().path)
+
+    private fun isAppDataRoot(root: String): Boolean =
+        root.endsWith("/Android/data") || root.endsWith("/Android/obb")
+
+    private fun needsRoot(root: String): Boolean =
+        root == "/" || root == "/data" || root.startsWith("/data/")
+
+    /** Roots that the scope settings manage; everything else was picked by the user. */
+    private fun isManagedRoot(root: String): Boolean = isAppDataRoot(root) || needsRoot(root)
+
+    private fun rootLevelRoots(level: Int): List<String> =
+        when (level) {
+            ROOT_LEVEL_ROOT_DIRS -> listOf("/data/adb", "/data/local/tmp")
+            ROOT_LEVEL_USER_DATA ->
+                listOf("/data/adb", "/data/local", "/data/data", "/data/app", "/data/user_de")
+            ROOT_LEVEL_ALL -> listOf("/")
+            else -> emptyList()
+        }
+
+    /**
+     * Makes the list of roots match the scope settings. Call from a background thread.
+     * @return whether any root was added or removed
+     */
+    fun applyScope(): Boolean {
+        val desired = mutableListOf<String>()
+        if (Settings.FILE_INDEX_APP_DATA.valueCompat) {
+            val storage = storageRoot()
+            desired += "$storage/Android/data"
+            desired += "$storage/Android/obb"
+        }
+        desired += rootLevelRoots(Settings.FILE_INDEX_ROOT_LEVEL.valueCompat)
+        if (desired.isNotEmpty() && Settings.ROOT_STRATEGY.valueCompat == RootStrategy.NEVER) {
+            // These folders can only be read through the root/Shizuku file layer.
+            Settings.ROOT_STRATEGY.putValue(RootStrategy.AUTOMATIC)
+        }
+        val current = getRoots()
+        val remove = current.filter { isManagedRoot(it) && it !in desired }
+        val add = desired.filter { it !in current }
+        removeRoots(remove)
+        for (root in add) {
+            addRoot(root)
+        }
+        return remove.isNotEmpty() || add.isNotEmpty()
+    }
+
+    /** Switches the search engine; the FTS table is built by the next scan. */
+    fun applyEngine(engine: Int) {
+        Settings.FILE_INDEX_ENGINE.putValue(engine)
+        if (engine != ENGINE_FTS4) {
+            dropFts()
+        }
+    }
+
+    private fun dropFts() {
+        ftsReady = false
+        try {
+            database().execSQL("DROP TABLE IF EXISTS ${FileIndexFts.TABLE}")
+        } catch (e: SQLiteException) {
+            e.printStackTrace()
+        }
+        setMeta(META_FTS_READY, "0")
+    }
+
+    private val useFts: Boolean
+        get() = Settings.FILE_INDEX_ENGINE.valueCompat == ENGINE_FTS4 && FileIndexFts.isSupported
 
     private fun selectFolders(root: String, indexedRoots: List<String>): List<String> {
         val prefix = root.trimEnd('/')
@@ -178,6 +295,7 @@ object FileIndex {
         } catch (e: SQLiteException) {
             e.printStackTrace()
         }
+        dropFts()
         refreshRootsCache()
     }
 
@@ -198,7 +316,7 @@ object FileIndex {
         val now = System.currentTimeMillis()
         val stale = try {
             database().rawQuery(
-                "SELECT COUNT(*) FROM roots WHERE scanned_at < ?",
+                "SELECT COUNT(*) FROM roots WHERE ABS(scanned_at) < ?",
                 arrayOf((now - REFRESH_AFTER_MILLIS).toString())
             ).use { it.moveToFirst() && it.getInt(0) > 0 }
         } catch (e: SQLiteException) {
@@ -249,43 +367,141 @@ object FileIndex {
         return level * 100 / scale >= MIN_BATTERY_PERCENT
     }
 
+    private enum class Outcome { DONE, ABORTED, FAILED }
+
     private fun scanAllRoots(force: Boolean) {
         val db = database()
-        if (getRoots().isEmpty()) {
+        val roots = getRoots()
+        if (roots.isEmpty()) {
             return
         }
         var total = 0
+        var normalTotal = 0
+        var rootTotal = 0
         // The previous scan's size is the best guess for how much work there is.
         val estimatedTotal = getEntryCount().coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
-        var finishedAll = true
+        var aborted = false
+        var failed = 0
+        var anyDone = false
+        if (useFts) {
+            // Searches use the plain table until the FTS table has been rebuilt.
+            ftsReady = false
+            setMeta(META_FTS_READY, "0")
+        }
         FileIndexNotification.showProgress(0, estimatedTotal, force = true)
-        for (root in getRoots()) {
+        // Plain storage first, elevated roots last: they are the slow and the optional ones.
+        for (root in roots.sortedBy { if (needsRoot(it)) 2 else if (isAppDataRoot(it)) 1 else 0 }) {
             if (cancelRequested || !canScanNow(force)) {
-                finishedAll = false
+                aborted = true
                 break
             }
             val scanId = System.currentTimeMillis()
-            val completed = scanRoot(db, root, scanId, force, MAX_ENTRIES - total) {
+            val elevated = needsRoot(root)
+            val budget = if (elevated) MAX_ROOT_ENTRIES - rootTotal else MAX_ENTRIES - normalTotal
+            val outcome = scanRoot(db, root, scanId, force, budget) {
                 total += it
+                if (elevated) rootTotal += it else normalTotal += it
                 FileIndexNotification.showProgress(total, estimatedTotal)
             }
-            if (!completed) {
-                finishedAll = false
-            }
-            if (completed) {
-                try {
-                    db.execSQL("DELETE FROM entries WHERE root = ? AND scan <> ?", arrayOf<Any>(root, scanId))
-                    db.execSQL("UPDATE roots SET scanned_at = ? WHERE path = ?", arrayOf<Any>(scanId, root))
-                } catch (e: SQLiteException) {
-                    e.printStackTrace()
+            when (outcome) {
+                Outcome.DONE -> {
+                    anyDone = true
+                    try {
+                        db.execSQL(
+                            "DELETE FROM entries WHERE root = ? AND scan <> ?",
+                            arrayOf<Any>(root, scanId)
+                        )
+                        db.execSQL(
+                            "UPDATE roots SET scanned_at = ? WHERE path = ?",
+                            arrayOf<Any>(scanId, root)
+                        )
+                    } catch (e: SQLiteException) {
+                        e.printStackTrace()
+                    }
                 }
+                Outcome.ABORTED -> {
+                    aborted = true
+                }
+                Outcome.FAILED -> {
+                    failed++
+                    try {
+                        // A negative time marks "tried and failed"; a good old scan is kept.
+                        db.execSQL(
+                            "UPDATE roots SET scanned_at = ? WHERE path = ? AND scanned_at <= 0",
+                            arrayOf<Any>(-scanId, root)
+                        )
+                    } catch (e: SQLiteException) {
+                        e.printStackTrace()
+                    }
+                }
+            }
+            if (aborted) {
+                break
             }
         }
         refreshRootsCache()
-        if (finishedAll) {
-            FileIndexNotification.showDone(total)
-        } else {
+        if (!aborted && useFts && (anyDone || !ftsReady)) {
+            rebuildFts(db, total)
+        }
+        if (aborted) {
             FileIndexNotification.cancel()
+        } else {
+            FileIndexNotification.showDone(total, failed)
+        }
+    }
+
+    /** Rebuilds the FTS table from the plain table. */
+    private fun rebuildFts(db: SQLiteDatabase, estimatedTotal: Int) {
+        ftsReady = false
+        setMeta(META_FTS_READY, "0")
+        try {
+            db.execSQL("DROP TABLE IF EXISTS ${FileIndexFts.TABLE}")
+            db.execSQL(FileIndexFts.CREATE_SQL)
+            val insert = db.compileStatement(
+                "INSERT INTO ${FileIndexFts.TABLE}(path, tri) VALUES(?, ?)"
+            )
+            var last = ""
+            var done = 0
+            FileIndexNotification.showPreparing(0, estimatedTotal, force = true)
+            while (true) {
+                if (cancelRequested) {
+                    return
+                }
+                val paths = ArrayList<String>(FTS_PAGE)
+                val folds = ArrayList<String>(FTS_PAGE)
+                db.rawQuery(
+                    "SELECT path, fold FROM entries WHERE path > ? ORDER BY path LIMIT $FTS_PAGE",
+                    arrayOf(last)
+                ).use {
+                    while (it.moveToNext()) {
+                        paths += it.getString(0)
+                        folds += it.getString(1)
+                    }
+                }
+                if (paths.isEmpty()) {
+                    break
+                }
+                db.beginTransaction()
+                try {
+                    for (i in paths.indices) {
+                        insert.clearBindings()
+                        insert.bindString(1, paths[i])
+                        insert.bindString(2, FileIndexFts.indexTokens(folds[i]))
+                        insert.executeInsert()
+                    }
+                    db.setTransactionSuccessful()
+                } finally {
+                    db.endTransaction()
+                }
+                last = paths.last()
+                done += paths.size
+                FileIndexNotification.showPreparing(done, estimatedTotal)
+            }
+            setMeta(META_FTS_READY, "1")
+            ftsReady = true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            ftsReady = false
         }
     }
 
@@ -301,7 +517,83 @@ object FileIndex {
         return path.endsWith("/Android/data") || path.endsWith("/Android/obb")
     }
 
-    /** @return whether the whole root was scanned */
+    /**
+     * Receives the entries of one root and writes them to the database in batches. Entries are
+     * tagged with the scan id; older rows are only deleted once the whole root has been scanned.
+     */
+    private class Sink(
+        private val db: SQLiteDatabase,
+        private val root: String,
+        private val scanId: Long,
+        private val budget: Int,
+        private val force: Boolean,
+        private val onInserted: (Int) -> Unit
+    ) {
+        private val statement = db.compileStatement(
+            "INSERT OR REPLACE INTO entries(path, fold, root, scan) VALUES(?, ?, ?, ?)"
+        )
+        private var inserted = 0
+        private var inBatch = 0
+        private var batches = 0
+
+        /** Stopped because of cancel, low battery or an interrupt. */
+        var aborted = false
+            private set
+
+        init {
+            db.beginTransaction()
+        }
+
+        /** @return whether the walk should go on */
+        fun add(path: String, name: String): Boolean {
+            if (cancelRequested || Thread.currentThread().isInterrupted) {
+                aborted = true
+                return false
+            }
+            if (inserted >= budget) {
+                // The cap was reached: keep what we have as a complete (if truncated) index.
+                return false
+            }
+            statement.clearBindings()
+            statement.bindString(1, path)
+            statement.bindString(2, fold(name))
+            statement.bindString(3, root)
+            statement.bindLong(4, scanId)
+            statement.executeInsert()
+            inserted++
+            inBatch++
+            if (inBatch >= BATCH_SIZE) {
+                db.setTransactionSuccessful()
+                db.endTransaction()
+                onInserted(inBatch)
+                inBatch = 0
+                batches++
+                if (batches % BATTERY_CHECK_EVERY_BATCHES == 0 && !canScanNow(force)) {
+                    aborted = true
+                    return false
+                }
+                try {
+                    // Let other work on the database and the CPU through.
+                    Thread.sleep(5)
+                } catch (e: InterruptedException) {
+                    aborted = true
+                    return false
+                }
+                db.beginTransaction()
+            }
+            return true
+        }
+
+        fun close() {
+            if (db.inTransaction()) {
+                db.setTransactionSuccessful()
+                db.endTransaction()
+            }
+            onInserted(inBatch)
+            inBatch = 0
+        }
+    }
+
     private fun scanRoot(
         db: SQLiteDatabase,
         root: String,
@@ -309,71 +601,149 @@ object FileIndex {
         force: Boolean,
         budget: Int,
         onInserted: (Int) -> Unit
-    ): Boolean {
-        val rootFile = File(root)
+    ): Outcome {
+        val sink = Sink(db, root, scanId, budget, force, onInserted)
+        val readable = try {
+            when {
+                needsRoot(root) ->
+                    walkWithRootFind(root, sink) || (root != "/" && walkFileLayer(root, sink))
+                isAppDataRoot(root) -> walkFileLayer(root, sink)
+                else -> walkFile(File(root), sink)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        } finally {
+            sink.close()
+        }
+        return when {
+            sink.aborted -> Outcome.ABORTED
+            readable -> Outcome.DONE
+            else -> Outcome.FAILED
+        }
+    }
+
+    /** Plain walk with java.io, for everything the app can read itself. */
+    private fun walkFile(rootFile: File, sink: Sink): Boolean {
         if (!rootFile.isDirectory) {
             return false
         }
-        val statement = db.compileStatement(
-            "INSERT OR REPLACE INTO entries(path, fold, root, scan) VALUES(?, ?, ?, ?)"
-        )
         val stack = ArrayDeque<File>()
         stack.addLast(rootFile)
-        var inserted = 0
-        var batches = 0
-        var inBatch = 0
-        db.beginTransaction()
-        try {
-            while (stack.isNotEmpty()) {
-                if (cancelRequested || Thread.currentThread().isInterrupted) {
-                    db.setTransactionSuccessful()
-                    return false
+        while (stack.isNotEmpty()) {
+            val children = stack.removeLast().listFiles() ?: continue
+            for (child in children) {
+                if (!sink.add(child.path, child.name)) {
+                    return true
                 }
-                val directory = stack.removeLast()
-                val children = directory.listFiles() ?: continue
-                for (child in children) {
-                    if (inserted >= budget) {
-                        db.setTransactionSuccessful()
-                        // Hitting the cap means the index is incomplete; keep the old rows.
-                        return false
-                    }
-                    val name = child.name
-                    statement.clearBindings()
-                    statement.bindString(1, child.path)
-                    statement.bindString(2, fold(name))
-                    statement.bindString(3, root)
-                    statement.bindLong(4, scanId)
-                    statement.executeInsert()
-                    inserted++
-                    inBatch++
-                    if (child.isDirectory && !isExcluded(child) && !isSymbolicLink(child)) {
-                        stack.addLast(child)
-                    }
-                    if (inBatch >= BATCH_SIZE) {
-                        db.setTransactionSuccessful()
-                        db.endTransaction()
-                        onInserted(inBatch)
-                        inBatch = 0
-                        batches++
-                        if (batches % BATTERY_CHECK_EVERY_BATCHES == 0 && !canScanNow(force)) {
-                            return false
-                        }
-                        // Let other work on the database and the CPU through.
-                        Thread.sleep(5)
-                        db.beginTransaction()
-                    }
+                if (child.isDirectory && !isExcluded(child) && !isSymbolicLink(child)) {
+                    stack.addLast(child)
                 }
             }
-            db.setTransactionSuccessful()
-        } catch (e: InterruptedException) {
-            return false
-        } finally {
-            if (db.inTransaction()) {
-                db.endTransaction()
-            }
-            onInserted(inBatch)
         }
         return true
+    }
+
+    /**
+     * Walk through the app's own file layer, which uses Shizuku or root as the root strategy
+     * says. Slow (one IPC call per folder and per entry) but works for Android/data and obb.
+     *
+     * @return false if the top folder could not be opened at all
+     */
+    private fun walkFileLayer(rootPath: String, sink: Sink): Boolean {
+        val stack = ArrayDeque<Path>()
+        stack.addLast(Paths.get(rootPath))
+        var first = true
+        while (stack.isNotEmpty()) {
+            val directory = stack.removeLast()
+            try {
+                Files.newDirectoryStream(directory).use { stream ->
+                    first = false
+                    for (child in stream) {
+                        val path = child.toString()
+                        if (!sink.add(path, path.substringAfterLast('/'))) {
+                            return true
+                        }
+                        val isDirectory = try {
+                            Files.readAttributes(
+                                child, BasicFileAttributes::class.java,
+                                LinkOption.NOFOLLOW_LINKS
+                            ).isDirectory
+                        } catch (e: IOException) {
+                            false
+                        }
+                        if (isDirectory) {
+                            stack.addLast(child)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                if (first) {
+                    return false
+                }
+                // A folder we may not read (or that vanished): skip it.
+            }
+        }
+        return true
+    }
+
+    private fun findCommand(root: String): String =
+        if (root == "/") {
+            // Virtual file systems, and mounts that show the same files a second time.
+            val skipped = listOf(
+                "/proc", "/sys", "/dev", "/storage", "/sdcard", "/mnt", "/data/media",
+                "/data/user", "/data_mirror", "/apex", "/acct", "/config", "/linkerconfig",
+                "/debug_ramdisk", "/metadata", "/cache"
+            )
+            "find -H / \\( " + skipped.joinToString(" -o ") { "-path $it" } +
+                " \\) -prune -o -print 2>/dev/null"
+        } else {
+            "find -H '$root' 2>/dev/null"
+        }
+
+    /**
+     * Lists a tree with `find` run through su, about 50 times faster than walking it with one
+     * call per folder. `--mount-master` is needed on some root managers: without it su runs in the
+     * app's own mount namespace, where other apps' data folders are hidden.
+     *
+     * @return false if root gave no output at all
+     */
+    private fun walkWithRootFind(root: String, sink: Sink): Boolean {
+        val command = findCommand(root)
+        val attempts = listOf(
+            arrayOf("su", "--mount-master", "-c", command),
+            arrayOf("su", "-c", command)
+        )
+        for (arguments in attempts) {
+            val process = try {
+                Runtime.getRuntime().exec(arguments)
+            } catch (e: IOException) {
+                return false
+            }
+            var lines = 0
+            try {
+                process.outputStream.close()
+                process.inputStream.bufferedReader().use { reader ->
+                    while (true) {
+                        val line = reader.readLine() ?: break
+                        if (line.isEmpty() || line == root) {
+                            continue
+                        }
+                        lines++
+                        if (!sink.add(line, line.substringAfterLast('/'))) {
+                            break
+                        }
+                    }
+                }
+            } finally {
+                // Closing the pipe makes find stop at its next write.
+                process.destroy()
+            }
+            if (lines > 0 || sink.aborted) {
+                return true
+            }
+        }
+        return false
     }
 
     private fun escapeLike(string: String): String =
@@ -404,21 +774,51 @@ object FileIndex {
             if (searchFolders.isEmpty()) {
                 return SearchResult(null)
             }
-            val results = mutableListOf<String>()
-            val likeArg = "%" + escapeLike(fold(query)) + "%"
+            val folded = fold(query)
+            val likeArg = "%" + escapeLike(folded) + "%"
+            val match = if (useFts && ftsReady) FileIndexFts.matchQuery(folded) else null
+            val results = LinkedHashSet<String>()
             for (folder in searchFolders) {
+                if (results.size >= MAX_RESULTS) {
+                    break
+                }
                 // '0' is the character right after '/', so this is exactly "paths below folder".
-                db.rawQuery(
-                    "SELECT path FROM entries WHERE path > ? AND path < ? " +
-                        "AND fold LIKE ? ESCAPE '\\' ORDER BY fold LIMIT $MAX_RESULTS",
-                    arrayOf("$folder/", "${folder}0", likeArg)
-                ).use {
-                    while (it.moveToNext() && results.size < MAX_RESULTS) {
-                        results += it.getString(0)
+                val low = "$folder/"
+                val high = "${folder}0"
+                var done = false
+                if (match != null) {
+                    try {
+                        // The FTS table narrows the candidates; the LIKE confirms the real match.
+                        db.rawQuery(
+                            "SELECT e.path FROM ${FileIndexFts.TABLE} f " +
+                                "JOIN entries e ON e.path = f.path " +
+                                "WHERE f.tri MATCH ? AND f.path > ? AND f.path < ? " +
+                                "AND e.fold LIKE ? ESCAPE '\\' ORDER BY e.fold LIMIT $MAX_RESULTS",
+                            arrayOf(match, low, high, likeArg)
+                        ).use {
+                            while (it.moveToNext() && results.size < MAX_RESULTS) {
+                                results += it.getString(0)
+                            }
+                        }
+                        done = true
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        ftsReady = false
+                    }
+                }
+                if (!done) {
+                    db.rawQuery(
+                        "SELECT path FROM entries WHERE path > ? AND path < ? " +
+                            "AND fold LIKE ? ESCAPE '\\' ORDER BY fold LIMIT $MAX_RESULTS",
+                        arrayOf(low, high, likeArg)
+                    ).use {
+                        while (it.moveToNext() && results.size < MAX_RESULTS) {
+                            results += it.getString(0)
+                        }
                     }
                 }
             }
-            return SearchResult(results)
+            return SearchResult(results.toList())
         } catch (e: Exception) {
             e.printStackTrace()
             return SearchResult(null, failed = true)

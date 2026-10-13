@@ -19,6 +19,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
+import me.zhanghai.android.files.BuildConfig
 import me.zhanghai.android.files.provider.remote.IRemoteFileService
 import me.zhanghai.android.files.provider.remote.RemoteFileServiceInterface
 import me.zhanghai.android.files.provider.remote.RemoteFileSystemException
@@ -32,7 +33,8 @@ object LibSuFileServiceLauncher {
     private val lock = Any()
 
     init {
-        Shell.enableVerboseLogging = true
+        // Verbose logging prints every command and its output to logcat.
+        Shell.enableVerboseLogging = BuildConfig.DEBUG
         Shell.setDefaultBuilder(
             Shell.Builder.create()
                 .setInitializers(LibSuShellInitializer::class.java)
@@ -44,7 +46,8 @@ object LibSuFileServiceLauncher {
     fun isSuAvailable(): Boolean =
         // @see com.topjohnwu.superuser.Shell.rootAccess
         try {
-            Runtime.getRuntime().exec("su --version")
+            // The process is only needed to see that "su" can be started; don't leak it.
+            Runtime.getRuntime().exec(arrayOf("su", "--version")).destroy()
             true
         } catch (e: IOException) {
             // java.io.IOException: Cannot run program "su": error=2, No such file or directory

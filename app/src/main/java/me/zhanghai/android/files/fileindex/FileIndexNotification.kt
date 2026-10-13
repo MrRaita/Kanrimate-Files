@@ -63,12 +63,39 @@ object FileIndexNotification {
         notify(builder)
     }
 
-    fun showDone(indexed: Int) {
+    /** The second phase of an FTS4 scan: building the word table from the finished index. */
+    fun showPreparing(done: Int, total: Int, force: Boolean = false) {
+        val now = System.currentTimeMillis()
+        if (!force && now - lastUpdateMillis < MIN_UPDATE_INTERVAL_MILLIS) {
+            return
+        }
+        lastUpdateMillis = now
+        val builder = fileIndexNotificationTemplate.createBuilder(application)
+            .setContentTitle(application.getString(R.string.file_index_notification_fts_title))
+            .setContentText(
+                application.getString(R.string.file_index_notification_fts_format, done)
+            )
+            .setOngoing(false)
+            .setTimeoutAfter(TIMEOUT_MILLIS)
+        if (total > 0) {
+            builder.setProgress(total, done.coerceAtMost(total), false)
+        } else {
+            builder.setProgress(0, 0, true)
+        }
+        notify(builder)
+    }
+
+    fun showDone(indexed: Int, failedRoots: Int = 0) {
+        var text = application.getString(R.string.file_index_notification_done_format, indexed)
+        if (failedRoots > 0) {
+            text += "\n" + application.getString(
+                R.string.file_index_notification_failed_format, failedRoots
+            )
+        }
         val builder = fileIndexNotificationTemplate.createBuilder(application)
             .setContentTitle(application.getString(R.string.file_index_notification_done_title))
-            .setContentText(
-                application.getString(R.string.file_index_notification_done_format, indexed)
-            )
+            .setContentText(text)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(text))
             .setOngoing(false)
             .setAutoCancel(true)
             .setTimeoutAfter(15_000L)

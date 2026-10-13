@@ -83,6 +83,13 @@
     <bool name="pref_default_value_file_index_prompt_shown">false</bool>
     <string name="pref_key_file_index_partial_search">key_file_index_partial_search</string>
     <bool name="pref_default_value_file_index_partial_search">false</bool>
+    <string name="pref_key_file_index_app_data">key_file_index_app_data</string>
+    <bool name="pref_default_value_file_index_app_data">false</bool>
+    <string name="pref_key_file_index_root_level">key_file_index_root_level</string>
+    <integer name="pref_default_value_file_index_root_level">0</integer>
+    <string name="pref_key_file_index_engine">key_file_index_engine</string>
+    <integer name="pref_default_value_file_index_engine">0</integer>
+    <string name="pref_key_file_index_advanced">key_file_index_advanced</string>
     <string name="pref_key_file_index_folders">key_file_index_folders</string>
     <string name="pref_key_file_index_diagnostics">key_file_index_diagnostics</string>
     <string name="pref_key_file_index_rebuild">key_file_index_rebuild</string>

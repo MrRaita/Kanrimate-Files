@@ -56,6 +56,24 @@ object Settings {
             R.bool.pref_default_value_file_index_partial_search
         )
 
+    val FILE_INDEX_APP_DATA: SettingLiveData<Boolean> =
+        BooleanSettingLiveData(
+            R.string.pref_key_file_index_app_data, R.bool.pref_default_value_file_index_app_data
+        )
+
+    /** 0 off, 1 root folders, 2 user data, 3 everything (see FileIndex). */
+    val FILE_INDEX_ROOT_LEVEL: SettingLiveData<Int> =
+        IntegerSettingLiveData(
+            R.string.pref_key_file_index_root_level,
+            R.integer.pref_default_value_file_index_root_level
+        )
+
+    /** 0 LIKE, 1 FTS4 (see FileIndex). */
+    val FILE_INDEX_ENGINE: SettingLiveData<Int> =
+        IntegerSettingLiveData(
+            R.string.pref_key_file_index_engine, R.integer.pref_default_value_file_index_engine
+        )
+
     val FILE_INDEX_PROMPT_SHOWN: SettingLiveData<Boolean> =
         BooleanSettingLiveData(
             R.string.pref_key_file_index_prompt_shown,

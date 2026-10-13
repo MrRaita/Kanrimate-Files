@@ -83,6 +83,14 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             true
         }
         preferenceScreen.findPreference<Preference>(
+            getString(R.string.pref_key_file_index_advanced)
+        )!!.setOnPreferenceClickListener {
+            FileIndexPrompt.showOptions(
+                requireActivity() as AppCompatActivity, addStorageRoot = false
+            ) { updateFileIndexSummary() }
+            true
+        }
+        preferenceScreen.findPreference<Preference>(
             getString(R.string.pref_key_file_index_diagnostics)
         )!!.setOnPreferenceClickListener {
             IndexDiagnosticsDialog.show(requireContext())

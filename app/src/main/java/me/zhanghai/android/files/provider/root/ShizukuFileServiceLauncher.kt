@@ -33,6 +33,8 @@ import rikka.shizuku.ShizukuApiConstants
 object ShizukuFileServiceLauncher {
     private val lock = Any()
 
+    private const val PERMISSION_TIMEOUT_MILLIS = 60 * 1000L
+
     @ChecksSdkIntAtLeast(api = Build.VERSION_CODES.M)
     fun isAvailable(): Boolean =
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && Shizuku.pingBinder()
@@ -47,22 +49,34 @@ object ShizukuFileServiceLauncher {
             if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
                 val granted = try {
                     runBlocking<Boolean> {
-                        suspendCancellableCoroutine { continuation ->
-                            val listener = object : Shizuku.OnRequestPermissionResultListener {
-                                override fun onRequestPermissionResult(
-                                    requestCode: Int,
-                                    grantResult: Int
-                                ) {
-                                    Shizuku.removeRequestPermissionResultListener(this)
-                                    val granted = grantResult == PackageManager.PERMISSION_GRANTED
-                                    continuation.resume(granted)
+                        try {
+                            // Without a timeout an ignored permission dialog would block this
+                            // thread, and everything else waiting for the lock, forever.
+                            withTimeout(PERMISSION_TIMEOUT_MILLIS) {
+                                suspendCancellableCoroutine<Boolean> { continuation ->
+                                    val listener = object :
+                                        Shizuku.OnRequestPermissionResultListener {
+                                        override fun onRequestPermissionResult(
+                                            requestCode: Int,
+                                            grantResult: Int
+                                        ) {
+                                            Shizuku.removeRequestPermissionResultListener(this)
+                                            if (continuation.isActive) {
+                                                continuation.resume(
+                                                    grantResult == PackageManager.PERMISSION_GRANTED
+                                                )
+                                            }
+                                        }
+                                    }
+                                    Shizuku.addRequestPermissionResultListener(listener)
+                                    continuation.invokeOnCancellation {
+                                        Shizuku.removeRequestPermissionResultListener(listener)
+                                    }
+                                    Shizuku.requestPermission(listener.hashCode())
                                 }
                             }
-                            Shizuku.addRequestPermissionResultListener(listener)
-                            continuation.invokeOnCancellation {
-                                Shizuku.removeRequestPermissionResultListener(listener)
-                            }
-                            Shizuku.requestPermission(listener.hashCode())
+                        } catch (e: TimeoutCancellationException) {
+                            false
                         }
                     }
                 } catch (e: InterruptedException) {

@@ -77,19 +77,6 @@ object IndexDiagnostics {
     private fun scalar(db: SQLiteDatabase, sql: String): String =
         db.rawQuery(sql, null).use { if (it.moveToFirst()) it.getString(0) else "?" }
 
-    /** Splits [fold] into distinct 3-character pieces; short names stay whole. */
-    fun trigrams(fold: String): String {
-        if (fold.codePointCount(0, fold.length) <= 3) {
-            return fold.replace(' ', '_')
-        }
-        val set = LinkedHashSet<String>()
-        val points = fold.codePoints().toArray()
-        for (i in 0..points.size - 3) {
-            set += String(points, i, 3).replace(' ', '_')
-        }
-        return set.joinToString(" ")
-    }
-
     private const val PHASE_MAX_MILLIS = 60_000L
     private const val PHASE_MAX_ENTRIES = 300_000
 
@@ -412,7 +399,7 @@ object IndexDiagnostics {
                     }
                     statement.clearBindings()
                     statement.bindLong(1, ++docid)
-                    statement.bindString(2, trigrams(cursor.getString(0)))
+                    statement.bindString(2, FileIndexFts.indexTokens(cursor.getString(0)))
                     statement.executeInsert()
                 }
             }
@@ -432,7 +419,7 @@ object IndexDiagnostics {
             for (round in 0 until 3) {
                 val start = SystemClock.elapsedRealtime()
                 matches = db.rawQuery(
-                    "SELECT COUNT(*) FROM t WHERE t MATCH ?", arrayOf(trigrams(query))
+                    "SELECT COUNT(*) FROM t WHERE t MATCH ?", arrayOf(FileIndexFts.matchQuery(query) ?: query)
                 ).use { if (it.moveToFirst()) it.getInt(0) else 0 }
                 times[round] = SystemClock.elapsedRealtime() - start
             }
