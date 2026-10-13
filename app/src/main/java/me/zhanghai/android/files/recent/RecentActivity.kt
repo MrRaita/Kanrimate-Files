@@ -148,9 +148,9 @@ class RecentActivity : AppActivity() {
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menu.add(Menu.NONE, MENU_CLEAR, Menu.NONE, R.string.recent_clear)
-            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-            .isEnabled = rows.isNotEmpty()
+        val item = menu.add(Menu.NONE, MENU_CLEAR, Menu.NONE, R.string.recent_clear)
+        item.setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        item.isEnabled = rows.isNotEmpty()
         return true
     }
 
