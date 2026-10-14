@@ -70,6 +70,10 @@ object FileIndex {
 
     private val scanning = AtomicBoolean(false)
 
+    /** Changes whenever the list of roots changes, so a running scan can tell it is outdated. */
+    @Volatile
+    private var rootsVersion = 0
+
     @Volatile
     private var cancelRequested = false
 
@@ -146,7 +150,9 @@ object FileIndex {
         if (mask and ROOT_USER_DATA != 0) {
             roots += listOf("/data/local", "/data/data", "/data/app", "/data/user_de")
         }
-        return roots
+        // A folder inside another chosen folder is already covered by it; scanning both would
+        // write the same entries twice.
+        return roots.filter { root -> roots.none { it != root && root.startsWith("$it/") } }
     }
 
     /**
@@ -229,6 +235,7 @@ object FileIndex {
         } catch (e: SQLiteException) {
             e.printStackTrace()
         }
+        rootsVersion++
         refreshRootsCache()
     }
 
@@ -251,6 +258,7 @@ object FileIndex {
         } catch (e: SQLiteException) {
             e.printStackTrace()
         }
+        rootsVersion++
         refreshRootsCache()
     }
 
@@ -263,6 +271,7 @@ object FileIndex {
         } catch (e: SQLiteException) {
             e.printStackTrace()
         }
+        rootsVersion++
         refreshRootsCache()
     }
 
@@ -319,11 +328,18 @@ object FileIndex {
                 Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND)
                 var runForce = force
                 while (true) {
-                    scanAllRoots(runForce)
+                    val versionAtStart = rootsVersion
+                    val completed = scanAllRoots(runForce)
                     if (!rescanPending) {
                         break
                     }
                     rescanPending = false
+                    if (completed && rootsVersion == versionAtStart && (runForce || !rescanForce)) {
+                        // The finished scan already did what the extra request asked for.
+                        IndexLog.log("scan: skipping a repeated request (nothing changed meanwhile)")
+                        rescanForce = false
+                        break
+                    }
                     runForce = rescanForce
                     rescanForce = false
                     cancelRequested = false
@@ -367,14 +383,15 @@ object FileIndex {
 
     private enum class Outcome { DONE, ABORTED, FAILED }
 
-    private fun scanAllRoots(force: Boolean) {
+    /** @return whether the scan ran to the end (was not cancelled or stopped) */
+    private fun scanAllRoots(force: Boolean): Boolean {
         val db = database()
         val roots = getRoots()
         val scanStart = System.currentTimeMillis()
         logScanHeader(force, roots)
         if (roots.isEmpty()) {
             IndexLog.log("scan: no roots, nothing to do")
-            return
+            return true
         }
         var total = 0
         var normalTotal = 0
@@ -458,6 +475,7 @@ object FileIndex {
         } else {
             FileIndexNotification.showDone(total, failed)
         }
+        return !aborted
     }
 
     private fun logScanHeader(force: Boolean, roots: List<String>) {
