@@ -68,6 +68,24 @@ object Settings {
             R.integer.pref_default_value_file_index_root_mask
         )
 
+    val FILE_INDEX_AUTO_OPEN: SettingLiveData<Boolean> =
+        BooleanSettingLiveData(
+            R.string.pref_key_file_index_auto_open, R.bool.pref_default_value_file_index_auto_open
+        )
+
+    /** Hours between automatic refreshes as a string ("0" is off). */
+    val FILE_INDEX_AUTO_INTERVAL: SettingLiveData<String> =
+        StringSettingLiveData(
+            R.string.pref_key_file_index_auto_interval,
+            R.string.pref_default_value_file_index_auto_interval
+        )
+
+    val FILE_INDEX_AUTO_CHARGING: SettingLiveData<Boolean> =
+        BooleanSettingLiveData(
+            R.string.pref_key_file_index_auto_charging,
+            R.bool.pref_default_value_file_index_auto_charging
+        )
+
     val FILE_INDEX_PROMPT_SHOWN: SettingLiveData<Boolean> =
         BooleanSettingLiveData(
             R.string.pref_key_file_index_prompt_shown,

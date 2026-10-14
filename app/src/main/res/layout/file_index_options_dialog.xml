@@ -7,69 +7,59 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:paddingHorizontal="24dp"
         android:paddingTop="8dp"
         android:paddingBottom="8dp">
 
         <TextView
+            android:textAppearance="@style/TextAppearance.AppCompat.Body2"
+            android:textStyle="bold"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:paddingStart="24dp"
+            android:paddingTop="8dp"
+            android:paddingEnd="24dp"
+            android:paddingBottom="4dp"
             android:text="@string/file_index_options_app_data_header"
-            android:textAppearance="?attr/textAppearanceSubtitle2" />
+            android:textColor="?attr/colorSecondary" />
 
-        <CheckBox
-            android:id="@+id/appDataCheck"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/file_index_options_app_data" />
+        <include
+            android:id="@+id/appDataRow"
+            layout="@layout/file_index_option_row" />
 
         <TextView
-            android:id="@+id/appDataNote"
+            android:textAppearance="@style/TextAppearance.AppCompat.Body2"
+            android:textStyle="bold"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textAppearance="?attr/textAppearanceCaption" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
+            android:paddingStart="24dp"
+            android:paddingTop="16dp"
+            android:paddingEnd="24dp"
+            android:paddingBottom="4dp"
             android:text="@string/file_index_options_root_header"
-            android:textAppearance="?attr/textAppearanceSubtitle2" />
+            android:textColor="?attr/colorSecondary" />
 
-        <CheckBox
-            android:id="@+id/rootCheck"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/file_index_options_root_mode" />
-
-        <TextView
-            android:id="@+id/rootNote"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:textAppearance="?attr/textAppearanceCaption" />
+        <include
+            android:id="@+id/rootRow"
+            layout="@layout/file_index_option_row" />
 
         <LinearLayout
             android:id="@+id/rootOptions"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
             android:orientation="vertical"
             android:visibility="gone">
 
-            <CheckBox
-                android:id="@+id/rootDirsCheck"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+            <include
+                android:id="@+id/rootDirsRow"
+                layout="@layout/file_index_option_row" />
 
-            <CheckBox
-                android:id="@+id/rootUserCheck"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+            <include
+                android:id="@+id/rootUserRow"
+                layout="@layout/file_index_option_row" />
 
-            <CheckBox
-                android:id="@+id/rootAllCheck"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+            <include
+                android:id="@+id/rootAllRow"
+                layout="@layout/file_index_option_row" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

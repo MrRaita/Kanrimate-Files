@@ -88,6 +88,21 @@
     <string name="pref_key_file_index_root_mask">key_file_index_root_mask</string>
     <integer name="pref_default_value_file_index_root_mask">0</integer>
     <string name="pref_key_hidden_items">key_hidden_items</string>
+    <string name="pref_key_file_index_auto_open">key_file_index_auto_open</string>
+    <bool name="pref_default_value_file_index_auto_open">false</bool>
+    <string name="pref_key_file_index_auto_interval">key_file_index_auto_interval</string>
+    <string name="pref_default_value_file_index_auto_interval">0</string>
+    <string-array name="pref_entry_values_file_index_auto_interval">
+        <item>0</item>
+        <item>1</item>
+        <item>2</item>
+        <item>4</item>
+        <item>8</item>
+        <item>12</item>
+        <item>24</item>
+    </string-array>
+    <string name="pref_key_file_index_auto_charging">key_file_index_auto_charging</string>
+    <bool name="pref_default_value_file_index_auto_charging">false</bool>
     <string name="pref_key_file_index_advanced">key_file_index_advanced</string>
     <string name="pref_key_file_index_folders">key_file_index_folders</string>
     <string name="pref_key_file_index_diagnostics">key_file_index_diagnostics</string>

@@ -206,6 +206,29 @@
             android:summary="@string/settings_file_index_advanced_summary"
             android:dependency="@string/pref_key_file_index_enabled" />
 
+        <SwitchPreferenceCompat
+            android:key="@string/pref_key_file_index_auto_open"
+            android:title="@string/settings_file_index_auto_open_title"
+            android:summary="@string/settings_file_index_auto_open_summary"
+            android:defaultValue="@bool/pref_default_value_file_index_auto_open"
+            android:dependency="@string/pref_key_file_index_enabled" />
+
+        <rikka.preference.SimpleMenuPreference
+            android:key="@string/pref_key_file_index_auto_interval"
+            android:title="@string/settings_file_index_auto_interval_title"
+            android:defaultValue="@string/pref_default_value_file_index_auto_interval"
+            android:entries="@array/settings_file_index_auto_interval_entries"
+            android:entryValues="@array/pref_entry_values_file_index_auto_interval"
+            android:dependency="@string/pref_key_file_index_enabled"
+            app:useSimpleSummaryProvider="true" />
+
+        <SwitchPreferenceCompat
+            android:key="@string/pref_key_file_index_auto_charging"
+            android:title="@string/settings_file_index_auto_charging_title"
+            android:summary="@string/settings_file_index_auto_charging_summary"
+            android:defaultValue="@bool/pref_default_value_file_index_auto_charging"
+            android:dependency="@string/pref_key_file_index_enabled" />
+
         <Preference
             android:key="@string/pref_key_file_index_diagnostics"
             android:title="@string/settings_file_index_diagnostics_title" />

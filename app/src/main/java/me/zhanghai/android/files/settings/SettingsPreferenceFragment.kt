@@ -13,6 +13,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import me.zhanghai.android.files.fileindex.FileIndex
 import me.zhanghai.android.files.filelist.FileMarks
 import me.zhanghai.android.files.fileindex.FileIndexPrompt
+import me.zhanghai.android.files.fileindex.FileIndexScheduler
 import me.zhanghai.android.files.fileindex.IndexDiagnosticsDialog
 import me.zhanghai.android.files.fileindex.IndexLogDialog
 import me.zhanghai.android.files.filelist.FileListActivity
@@ -63,8 +64,8 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         preferenceScreen.findPreference<Preference>(
             getString(R.string.pref_key_file_index_rebuild)
         )!!.setOnPreferenceClickListener {
+            // The scan itself shows the "started" and "finished" messages.
             FileIndex.startScan(force = true)
-            requireContext().showToast(R.string.settings_file_index_rebuild_started)
             true
         }
         preferenceScreen.findPreference<Preference>(
@@ -105,6 +106,18 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             IndexLogDialog.show(requireContext())
             true
         }
+        // Keep the scheduled jobs in line with the automatic indexing settings.
+        Settings.FILE_INDEX_ENABLED.observe(this) {
+            AppExecutors.io.execute { FileIndexScheduler.update() }
+        }
+        Settings.FILE_INDEX_AUTO_INTERVAL.observe(this) {
+            AppExecutors.io.execute { FileIndexScheduler.update() }
+        }
+        Settings.FILE_INDEX_AUTO_CHARGING.observe(this) {
+            AppExecutors.io.execute { FileIndexScheduler.update() }
+        }
+        // The folder and entry counts change when a scan starts or ends.
+        FileIndex.scanEvents.observe(this) { updateFileIndexSummary() }
         updateFileIndexSummary()
     }
 

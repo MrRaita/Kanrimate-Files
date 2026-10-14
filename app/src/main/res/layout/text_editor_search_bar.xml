@@ -47,8 +47,9 @@
         android:gravity="center"
         android:paddingStart="4dp"
         android:paddingEnd="4dp"
-        android:textColor="?android:attr/textColorSecondary"
-        android:textSize="13sp" />
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="14sp"
+        android:textStyle="bold" />
 
     <ImageButton
         android:id="@+id/searchBarClose"

@@ -6,15 +6,12 @@
 package me.zhanghai.android.files.fileindex
 
 import android.os.Environment
-import android.text.SpannableString
-import android.text.Spanned
-import android.text.style.RelativeSizeSpan
 import android.view.LayoutInflater
 import android.view.View
-import android.widget.CheckBox
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.switchmaterial.SwitchMaterial
 import me.zhanghai.android.files.R
 import me.zhanghai.android.files.provider.root.LibSuFileServiceLauncher
 import me.zhanghai.android.files.provider.root.RootStrategy
@@ -83,8 +80,11 @@ object FileIndexPrompt {
                     }
                     Settings.FILE_INDEX_ENABLED.putValue(true)
                     FileIndex.startScan(force = true)
+                    // Also ask how the index should be kept up to date.
+                    showAutoDialog(activity, onDone)
+                } else {
+                    onDone?.invoke()
                 }
-                onDone?.invoke()
             }
             .setNegativeButton(android.R.string.cancel) { _, _ -> onDone?.invoke() }
             .setOnCancelListener { onDone?.invoke() }
@@ -110,16 +110,6 @@ object FileIndexPrompt {
         return Access(shizuku, root)
     }
 
-    private fun describe(activity: AppCompatActivity, title: Int, description: Int): CharSequence {
-        val titleText = activity.getString(title)
-        val text = SpannableString(titleText + "\n" + activity.getString(description))
-        text.setSpan(
-            RelativeSizeSpan(0.82f), titleText.length + 1, text.length,
-            Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-        )
-        return text
-    }
-
     /**
      * The full-scan options: app data through Shizuku/root, how much of the root file system to
      * add, and the search engine. Used by the first-run flow and from the settings.
@@ -141,6 +131,52 @@ object FileIndexPrompt {
         }
     }
 
+    /** A row laid out like a preference in the settings: title, summary and a switch. */
+    private class OptionRow(val view: View) {
+        private val title = view.findViewById<TextView>(R.id.rowTitle)
+        private val summary = view.findViewById<TextView>(R.id.rowSummary)
+        private val switch = view.findViewById<SwitchMaterial>(R.id.rowSwitch)
+        var onChanged: (() -> Unit)? = null
+
+        init {
+            view.setOnClickListener {
+                if (view.isEnabled && switch.visibility == View.VISIBLE) {
+                    switch.toggle()
+                }
+            }
+            switch.setOnCheckedChangeListener { _, _ -> onChanged?.invoke() }
+        }
+
+        var isChecked: Boolean
+            get() = switch.isChecked
+            set(value) {
+                switch.isChecked = value
+            }
+
+        var isEnabled: Boolean
+            get() = view.isEnabled
+            set(value) {
+                view.isEnabled = value
+                switch.isEnabled = value
+                view.alpha = if (value) 1f else 0.5f
+            }
+
+        fun setTitle(text: CharSequence) {
+            title.text = text
+        }
+
+        fun setSummary(text: CharSequence?) {
+            summary.text = text
+            summary.visibility = if (text.isNullOrEmpty()) View.GONE else View.VISIBLE
+        }
+
+        /** Makes this a plain row without a switch (a choice that opens its own dialog). */
+        fun hideSwitch(onClick: () -> Unit) {
+            switch.visibility = View.GONE
+            view.setOnClickListener { onClick() }
+        }
+    }
+
     private fun showOptionsDialog(
         activity: AppCompatActivity,
         addStorageRoot: Boolean,
@@ -148,19 +184,18 @@ object FileIndexPrompt {
         onDone: (() -> Unit)?
     ) {
         val view = LayoutInflater.from(activity).inflate(R.layout.file_index_options_dialog, null)
-        val appDataCheck = view.findViewById<CheckBox>(R.id.appDataCheck)
-        val appDataNote = view.findViewById<TextView>(R.id.appDataNote)
-        val rootCheck = view.findViewById<CheckBox>(R.id.rootCheck)
-        val rootNote = view.findViewById<TextView>(R.id.rootNote)
+        val appData = OptionRow(view.findViewById(R.id.appDataRow))
+        val root = OptionRow(view.findViewById(R.id.rootRow))
         val rootOptions = view.findViewById<View>(R.id.rootOptions)
-        val dirsCheck = view.findViewById<CheckBox>(R.id.rootDirsCheck)
-        val userCheck = view.findViewById<CheckBox>(R.id.rootUserCheck)
-        val allCheck = view.findViewById<CheckBox>(R.id.rootAllCheck)
+        val dirs = OptionRow(view.findViewById(R.id.rootDirsRow))
+        val user = OptionRow(view.findViewById(R.id.rootUserRow))
+        val all = OptionRow(view.findViewById(R.id.rootAllRow))
 
         // Shizuku / app data.
         val appDataPossible = access.shizuku || access.root
-        appDataCheck.isEnabled = appDataPossible
-        appDataCheck.isChecked = appDataPossible && Settings.FILE_INDEX_APP_DATA.valueCompat
+        appData.setTitle(activity.getString(R.string.file_index_options_app_data))
+        appData.isEnabled = appDataPossible
+        appData.isChecked = appDataPossible && Settings.FILE_INDEX_APP_DATA.valueCompat
         var appDataNoteText = activity.getString(
             when {
                 access.shizuku -> R.string.file_index_options_app_data_shizuku_ready
@@ -172,72 +207,68 @@ object FileIndexPrompt {
             // Applying these options switches the root setting, so say so before it happens.
             appDataNoteText += "\n" + activity.getString(R.string.file_index_options_strategy_note)
         }
-        appDataNote.text = appDataNoteText
+        appData.setSummary(appDataNoteText)
 
         // Root mode: one switch that opens the three independent choices below it.
-        dirsCheck.text = describe(
-            activity, R.string.file_index_options_root_dirs,
-            R.string.file_index_options_root_dirs_description
+        root.setTitle(activity.getString(R.string.file_index_options_root_mode))
+        root.setSummary(
+            activity.getString(
+                if (access.root) {
+                    R.string.file_index_options_root_available
+                } else {
+                    R.string.file_index_options_root_unavailable
+                }
+            )
         )
-        userCheck.text = describe(
-            activity, R.string.file_index_options_root_user,
-            R.string.file_index_options_root_user_description
-        )
-        allCheck.text = describe(
-            activity, R.string.file_index_options_root_all,
-            R.string.file_index_options_root_all_description
-        )
+        dirs.setTitle(activity.getString(R.string.file_index_options_root_dirs))
+        dirs.setSummary(activity.getString(R.string.file_index_options_root_dirs_description))
+        user.setTitle(activity.getString(R.string.file_index_options_root_user))
+        user.setSummary(activity.getString(R.string.file_index_options_root_user_description))
+        all.setTitle(activity.getString(R.string.file_index_options_root_all))
+        all.setSummary(activity.getString(R.string.file_index_options_root_all_description))
         val mask = if (access.root) Settings.FILE_INDEX_ROOT_MASK.valueCompat else 0
-        rootCheck.isEnabled = access.root
-        rootCheck.isChecked = mask != 0
-        dirsCheck.isChecked = mask and FileIndex.ROOT_DIRS != 0
-        userCheck.isChecked = mask and FileIndex.ROOT_USER_DATA != 0
-        allCheck.isChecked = mask and FileIndex.ROOT_ALL != 0
-        rootNote.setText(
-            if (access.root) {
-                R.string.file_index_options_root_available
-            } else {
-                R.string.file_index_options_root_unavailable
-            }
-        )
+        root.isEnabled = access.root
+        root.isChecked = mask != 0
+        dirs.isChecked = mask and FileIndex.ROOT_DIRS != 0
+        user.isChecked = mask and FileIndex.ROOT_USER_DATA != 0
+        all.isChecked = mask and FileIndex.ROOT_ALL != 0
 
-        // "All folders" includes the other two, so they are shown checked and greyed out.
+        // "All folders" includes the other two, so they are shown on and greyed out.
         fun updateRootViews() {
-            rootOptions.visibility = if (rootCheck.isChecked) View.VISIBLE else View.GONE
-            val all = allCheck.isChecked
-            dirsCheck.isEnabled = !all
-            userCheck.isEnabled = !all
-            if (all) {
-                dirsCheck.isChecked = true
-                userCheck.isChecked = true
+            rootOptions.visibility = if (root.isChecked) View.VISIBLE else View.GONE
+            val allOn = all.isChecked
+            dirs.isEnabled = !allOn
+            user.isEnabled = !allOn
+            if (allOn) {
+                dirs.isChecked = true
+                user.isChecked = true
             }
         }
         updateRootViews()
-        rootCheck.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked && !dirsCheck.isChecked && !userCheck.isChecked && !allCheck.isChecked) {
-                dirsCheck.isChecked = true
+        root.onChanged = {
+            if (root.isChecked && !dirs.isChecked && !user.isChecked && !all.isChecked) {
+                dirs.isChecked = true
             }
             updateRootViews()
         }
-        allCheck.setOnCheckedChangeListener { _, _ -> updateRootViews() }
+        all.onChanged = { updateRootViews() }
 
         fun selectedMask(): Int {
-            if (!rootCheck.isChecked) {
+            if (!root.isChecked) {
                 return 0
             }
             return when {
-                allCheck.isChecked -> FileIndex.ROOT_ALL
+                all.isChecked -> FileIndex.ROOT_ALL
                 else ->
-                    (if (dirsCheck.isChecked) FileIndex.ROOT_DIRS else 0) or
-                        (if (userCheck.isChecked) FileIndex.ROOT_USER_DATA else 0)
+                    (if (dirs.isChecked) FileIndex.ROOT_DIRS else 0) or
+                        (if (user.isChecked) FileIndex.ROOT_USER_DATA else 0)
             }
         }
 
         fun apply() {
-            val appData = appDataCheck.isChecked
             val newMask = selectedMask()
             Settings.FILE_INDEX_ENABLED.putValue(true)
-            Settings.FILE_INDEX_APP_DATA.putValue(appData)
+            Settings.FILE_INDEX_APP_DATA.putValue(appData.isChecked)
             Settings.FILE_INDEX_ROOT_MASK.putValue(newMask)
             AppExecutors.io.execute {
                 if (addStorageRoot) {
@@ -246,7 +277,12 @@ object FileIndexPrompt {
                 FileIndex.applyScope()
                 FileIndex.startScan(force = true)
             }
-            onDone?.invoke()
+            if (addStorageRoot) {
+                // First run: also ask how the index should be kept up to date.
+                showAutoDialog(activity, onDone)
+            } else {
+                onDone?.invoke()
+            }
         }
 
         MaterialAlertDialogBuilder(activity)
@@ -276,6 +312,60 @@ object FileIndexPrompt {
                 }
             }
             .setNegativeButton(android.R.string.cancel) { _, _ -> onDone?.invoke() }
+            .setOnCancelListener { onDone?.invoke() }
+            .show()
+    }
+
+    /** The choices for how often the index refreshes itself, in hours; 0 is off. */
+    private val AUTO_INTERVAL_VALUES = listOf("0", "1", "2", "4", "8", "12", "24")
+
+    /**
+     * Asks when the index should refresh by itself. Shown after the first setup; the same three
+     * settings can be changed later in the settings screen.
+     */
+    fun showAutoDialog(activity: AppCompatActivity, onDone: (() -> Unit)? = null) {
+        val view = LayoutInflater.from(activity).inflate(R.layout.file_index_auto_dialog, null)
+        val open = OptionRow(view.findViewById(R.id.autoOpenRow))
+        val interval = OptionRow(view.findViewById(R.id.autoIntervalRow))
+        val charging = OptionRow(view.findViewById(R.id.autoChargingRow))
+        val entries = activity.resources.getStringArray(R.array.settings_file_index_auto_interval_entries)
+
+        open.setTitle(activity.getString(R.string.settings_file_index_auto_open_title))
+        open.setSummary(activity.getString(R.string.settings_file_index_auto_open_summary))
+        open.isChecked = Settings.FILE_INDEX_AUTO_OPEN.valueCompat
+
+        var selectedInterval = AUTO_INTERVAL_VALUES.indexOf(
+            Settings.FILE_INDEX_AUTO_INTERVAL.valueCompat
+        ).coerceAtLeast(0)
+        interval.setTitle(activity.getString(R.string.settings_file_index_auto_interval_title))
+        interval.setSummary(entries[selectedInterval])
+        interval.hideSwitch {
+            MaterialAlertDialogBuilder(activity)
+                .setTitle(R.string.settings_file_index_auto_interval_title)
+                .setSingleChoiceItems(entries, selectedInterval) { dialog, which ->
+                    selectedInterval = which
+                    interval.setSummary(entries[which])
+                    dialog.dismiss()
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+        }
+
+        charging.setTitle(activity.getString(R.string.settings_file_index_auto_charging_title))
+        charging.setSummary(activity.getString(R.string.settings_file_index_auto_charging_summary))
+        charging.isChecked = Settings.FILE_INDEX_AUTO_CHARGING.valueCompat
+
+        MaterialAlertDialogBuilder(activity)
+            .setTitle(R.string.file_index_auto_title)
+            .setView(view)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                Settings.FILE_INDEX_AUTO_OPEN.putValue(open.isChecked)
+                Settings.FILE_INDEX_AUTO_INTERVAL.putValue(AUTO_INTERVAL_VALUES[selectedInterval])
+                Settings.FILE_INDEX_AUTO_CHARGING.putValue(charging.isChecked)
+                AppExecutors.io.execute { FileIndexScheduler.update() }
+                onDone?.invoke()
+            }
+            .setNegativeButton(R.string.file_index_prompt_not_now) { _, _ -> onDone?.invoke() }
             .setOnCancelListener { onDone?.invoke() }
             .show()
     }

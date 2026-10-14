@@ -40,7 +40,11 @@ import androidx.appcompat.widget.Toolbar
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
+import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.widget.TextViewCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updatePaddingRelative
 import androidx.drawerlayout.widget.DrawerLayout
@@ -258,6 +262,7 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         }
         binding.appBarLayout.syncBackgroundColorTo(binding.overlayToolbar)
         binding.breadcrumbLayout.setListener(this)
+        setUpEmptyViewFitting()
         if (!(activity.hasSw600Dp && activity.isOrientationLandscape)) {
             binding.swipeRefreshLayout.setProgressViewEndTarget(
                 true, binding.swipeRefreshLayout.progressViewEndOffset
@@ -299,6 +304,21 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
                     }
                 }
         )
+        // While searching, the first Back hides the keyboard and the next one leaves the search.
+        // Registered before the selection and speed dial callbacks so those keep priority.
+        searchBackCallback = object : OnBackPressedCallback(false) {
+            override fun handleOnBackPressed() {
+                val searchView = menuBinding.searchItem.actionView as? SearchView
+                val imeVisible = ViewCompat.getRootWindowInsets(binding.root)
+                    ?.isVisible(WindowInsetsCompat.Type.ime()) == true
+                if (imeVisible && searchView != null) {
+                    // clearFocus() also hides the keyboard.
+                    searchView.clearFocus()
+                } else {
+                    collapseSearchView()
+                }
+            }
+        }.also { addOnBackPressedCallback(it) }
         addOnBackPressedCallback(overlayActionMode.onBackPressedCallback)
         addOnBackPressedCallback(SpeedDialViewOnBackPressedCallback(binding.speedDialView))
         binding.drawerLayout?.let {
@@ -695,8 +715,30 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         updateBottomToolbar()
     }
 
+    private var searchBackCallback: OnBackPressedCallback? = null
+
     private fun onSearchViewExpandedChanged(expanded: Boolean) {
+        searchBackCallback?.isEnabled = expanded
         updateViewSortMenuItems()
+    }
+
+    /**
+     * With the keyboard open the content area can be shorter than the big empty-folder or error
+     * picture, which then spills over the breadcrumbs. Without room, only the text is shown.
+     */
+    private fun setUpEmptyViewFitting() {
+        val emptyIcon = ContextCompat.getDrawable(requireContext(), R.drawable.file_icon_240dp)
+        val errorIcon = ContextCompat.getDrawable(requireContext(), R.drawable.error_icon_240dp)
+        binding.contentLayout.addOnLayoutChangeListener { v, _, top, _, bottom, _, _, _, _ ->
+            val enoughRoom = (bottom - top) - v.paddingTop - v.paddingBottom >
+                (360 * resources.displayMetrics.density)
+            TextViewCompat.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                binding.emptyView, null, if (enoughRoom) emptyIcon else null, null, null
+            )
+            TextViewCompat.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                binding.errorText, null, if (enoughRoom) errorIcon else null, null, null
+            )
+        }
     }
 
     private var isNavigatingToExistingParent = false
@@ -742,14 +784,17 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         when {
             stateful is Failure -> binding.toolbar.setSubtitle(R.string.error)
             stateful is Loading && !isSearching -> binding.toolbar.setSubtitle(R.string.loading)
-            else -> {
-                var subtitle = getSubtitle(files!!)
-                if (isSearching && viewModel.searchFromIndex) {
-                    subtitle += getString(R.string.file_list_subtitle_separator) +
-                        getString(R.string.file_list_subtitle_from_index)
-                }
-                binding.toolbar.subtitle = subtitle
-            }
+            else -> binding.toolbar.subtitle = getSubtitle(files!!)
+        }
+        // The toolbar shows the search field while searching, so the subtitle is invisible then;
+        // the source of the results is shown in its own line under the breadcrumbs.
+        if (isSearching && stateful !is Failure && files != null && viewModel.searchFromIndex) {
+            binding.searchSourceText.text = getSubtitle(files) +
+                getString(R.string.file_list_subtitle_separator) +
+                getString(R.string.file_list_subtitle_from_index)
+            binding.searchSourceText.isVisible = true
+        } else {
+            binding.searchSourceText.isVisible = false
         }
         val hasFiles = !files.isNullOrEmpty()
         binding.swipeRefreshLayout.isRefreshing = stateful is Loading && (hasFiles || isSearching)

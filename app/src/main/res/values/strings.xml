@@ -1015,7 +1015,7 @@
     <string name="settings_selection_actions_hint_menu">Shown inside the ⋮ menu. Drag to reorder, tap ⇄ to move an action to the toolbar, ✕ to hide it.</string>
     <string name="settings_file_index_title">Search index</string>
     <string name="settings_file_index_enabled_title">Fast search index</string>
-    <string name="settings_file_index_enabled_summary">Keeps a list of file and folder names (never contents) for the folders you choose, so searches are instant. It refreshes in the background at most twice a day, and not on low battery or in power saving mode. New files appear after the next refresh.</string>
+    <string name="settings_file_index_enabled_summary">Keeps a list of file and folder names (never contents) for the folders you choose, so searches are instant. It refreshes when you choose (app open, regular intervals, charging) or when you rebuild it, and not on low battery or in power saving mode. New files appear after the next refresh.</string>
     <string name="settings_file_index_folders_title">Indexed folders</string>
     <string name="settings_file_index_folders_summary_format">%1$d folders, %2$d names</string>
     <string name="settings_file_index_rebuild_title">Rebuild index now</string>
@@ -1048,6 +1048,22 @@
     <string name="settings_file_index_diagnostics_copy">Copy</string>
     <string name="settings_file_index_diagnostics_synthetic">Synthetic test</string>
     <string name="file_list_subtitle_from_index">from index</string>
+    <string name="file_index_auto_title">Automatic indexing</string>
+    <string name="settings_file_index_auto_open_title">When the app opens</string>
+    <string name="settings_file_index_auto_open_summary">Refreshes the index each time you open the app (not again within 15 minutes).</string>
+    <string name="settings_file_index_auto_interval_title">At regular intervals</string>
+    <string-array name="settings_file_index_auto_interval_entries">
+        <item>Off</item>
+        <item>Every hour</item>
+        <item>Every 2 hours</item>
+        <item>Every 4 hours</item>
+        <item>Every 8 hours</item>
+        <item>Every 12 hours</item>
+        <item>Every 24 hours</item>
+    </string-array>
+    <string name="settings_file_index_auto_charging_title">While charging or docked</string>
+    <string name="settings_file_index_auto_charging_summary">Refreshes the index when the phone is plugged in or docked, at most every 6 hours.</string>
+    <string name="file_index_toast_done_format">Indexing finished: %1$d entries</string>
     <string name="settings_file_index_log_title">Index log</string>
     <string name="settings_file_index_log_summary">Details of every scan and search, for finding problems</string>
     <string name="settings_file_index_log_share">Share</string>

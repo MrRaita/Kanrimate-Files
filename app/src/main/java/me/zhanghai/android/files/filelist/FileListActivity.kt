@@ -36,6 +36,7 @@ class FileListActivity : AppActivity() {
             // Only the normal launch asks; picker modes of this activity must not.
             if (intent.action == Intent.ACTION_MAIN) {
                 FileIndexPrompt.showIfNeeded(this)
+                FileIndex.onAppOpened()
             }
         } else {
             fragment = supportFragmentManager.findFragmentById(android.R.id.content)
@@ -47,9 +48,6 @@ class FileListActivity : AppActivity() {
         super.onStart()
 
         AppExecutors.io.execute { FileIndex.refreshRootsCache() }
-        if (intent.action == Intent.ACTION_MAIN) {
-            FileIndex.refreshIfStale()
-        }
     }
 
     override fun onKeyShortcut(keyCode: Int, event: KeyEvent): Boolean {

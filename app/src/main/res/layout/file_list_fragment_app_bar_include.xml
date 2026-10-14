@@ -53,5 +53,17 @@
             android:layout_height="wrap_content"
             android:paddingStart="@dimen/content_start_margin_minus_12dp"
             android:paddingEnd="@dimen/screen_edge_margin_minus_12dp" />
+
+        <!-- Shows where search results came from (the toolbar subtitle is hidden while searching). -->
+        <TextView
+            android:id="@+id/searchSourceText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="@dimen/content_start_margin"
+            android:paddingEnd="@dimen/screen_edge_margin"
+            android:paddingTop="2dp"
+            android:paddingBottom="6dp"
+            android:textAppearance="?attr/textAppearanceCaption"
+            android:visibility="gone" />
     </me.zhanghai.android.files.ui.CoordinatorAppBarLayout>
 </merge>

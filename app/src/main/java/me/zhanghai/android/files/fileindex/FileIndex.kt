@@ -11,12 +11,18 @@ import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteException
 import android.os.BatteryManager
 import android.os.Environment
+import android.os.Handler
+import android.os.Looper
+import android.widget.Toast
+import androidx.lifecycle.MutableLiveData
+import me.zhanghai.android.files.R
 import android.os.Process
 import android.system.ErrnoException
 import android.system.Os
 import android.system.OsConstants
 import me.zhanghai.android.files.app.application
 import me.zhanghai.android.files.app.powerManager
+import me.zhanghai.android.files.util.AppExecutors
 import me.zhanghai.android.files.settings.Settings
 import me.zhanghai.android.files.util.valueCompat
 import java8.nio.file.Files
@@ -50,6 +56,7 @@ object FileIndex {
     private const val MAX_RESULTS = 5000
 
     private const val STALE_AFTER_MILLIS = 30L * 60 * 1000
+    private const val RECENT_SCAN_MILLIS = 15L * 60 * 1000
 
     /** Root scope bits; "all" covers the other two. */
     /** Module sources and logs (/data/adb, /data/local/tmp). */
@@ -284,22 +291,46 @@ object FileIndex {
             0L
         }
 
-    /** Starts a scan in the background if the index is enabled and out of date. */
-    fun refreshIfStale() {
+    /**
+     * Called when the app is opened: makes sure the automatic jobs exist and, if the user wants
+     * it, refreshes the index. A scan that finished a few minutes ago is not repeated.
+     */
+    fun onAppOpened() {
         if (!Settings.FILE_INDEX_ENABLED.valueCompat) {
             return
         }
-        val now = System.currentTimeMillis()
-        val stale = try {
-            database().rawQuery(
-                "SELECT COUNT(*) FROM roots WHERE ABS(scanned_at) < ?",
-                arrayOf((now - REFRESH_AFTER_MILLIS).toString())
-            ).use { it.moveToFirst() && it.getInt(0) > 0 }
+        AppExecutors.io.execute {
+            FileIndexScheduler.update()
+            if (Settings.FILE_INDEX_AUTO_OPEN.valueCompat && !wasScannedRecently()) {
+                IndexLog.log("auto: refreshing because the app was opened")
+                startScan(force = false)
+            }
+        }
+    }
+
+    private fun wasScannedRecently(): Boolean =
+        try {
+            val newest = database().rawQuery(
+                "SELECT MIN(ABS(scanned_at)) FROM roots", null
+            ).use { if (it.moveToFirst() && !it.isNull(0)) it.getLong(0) else 0L }
+            newest > 0 && System.currentTimeMillis() - newest < RECENT_SCAN_MILLIS
         } catch (e: SQLiteException) {
             false
         }
-        if (stale) {
-            startScan(force = false)
+
+    /** Changes every time a scan starts or ends, so screens can refresh what they show. */
+    val scanEvents = MutableLiveData<Long>()
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    private fun toast(textRes: Int, vararg args: Any) {
+        mainHandler.post {
+            try {
+                Toast.makeText(application, application.getString(textRes, *args), Toast.LENGTH_SHORT)
+                    .show()
+            } catch (e: Exception) {
+                // A toast is a convenience; never let it break anything.
+            }
         }
     }
 
@@ -313,15 +344,27 @@ object FileIndex {
     @Volatile
     private var rescanForce = false
 
-    /** @param force ignore the battery and power saving checks (user asked for it) */
-    fun startScan(force: Boolean) {
-        IndexLog.log("startScan requested (force=$force, scanning=${scanning.get()})")
+    @Volatile
+    private var scanQuiet = false
+
+    /**
+     * @param force ignore the battery and power saving checks (user asked for it)
+     * @param quiet no start and finish messages on screen (scheduled background runs)
+     */
+    fun startScan(force: Boolean, quiet: Boolean = false) {
+        IndexLog.log("startScan requested (force=$force, quiet=$quiet, scanning=${scanning.get()})")
         if (!scanning.compareAndSet(false, true)) {
             // A scan is still winding down (for example it was just cancelled): run again after.
             rescanForce = rescanForce || force
             rescanPending = true
+            scanQuiet = scanQuiet && quiet
             return
         }
+        scanQuiet = quiet
+        if (!quiet) {
+            toast(R.string.settings_file_index_rebuild_started)
+        }
+        scanEvents.postValue(System.currentTimeMillis())
         cancelRequested = false
         Thread({
             try {
@@ -349,6 +392,7 @@ object FileIndex {
                 IndexLog.log("scan thread crashed", e)
             } finally {
                 scanning.set(false)
+                scanEvents.postValue(System.currentTimeMillis())
             }
         }, "FileIndex.Scan").start()
     }
@@ -474,6 +518,9 @@ object FileIndex {
             FileIndexNotification.cancel()
         } else {
             FileIndexNotification.showDone(total, failed)
+            if (!scanQuiet) {
+                toast(R.string.file_index_toast_done_format, getEntryCount())
+            }
         }
         return !aborted
     }

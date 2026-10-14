@@ -865,7 +865,7 @@
     </string-array>
     <string name="settings_file_index_title">Arama indeksi</string>
     <string name="settings_file_index_enabled_title">Hızlı arama indeksi</string>
-    <string name="settings_file_index_enabled_summary">Seçtiğin klasörlerdeki dosya ve klasör adlarının (içerik asla) listesini tutar, böylece arama anında sonuç verir. Arka planda günde en fazla iki kez yenilenir, pil azken ve güç tasarrufu modunda çalışmaz. Yeni dosyalar bir sonraki yenilemeden sonra görünür.</string>
+    <string name="settings_file_index_enabled_summary">Seçtiğin klasörlerdeki dosya ve klasör adlarının (içerik asla) listesini tutar, böylece arama anında sonuç verir. Senin seçtiğin zamanlarda (uygulama açılışı, düzenli aralıklar, şarj) ya da elle yeniden oluşturunca yenilenir, pil azken ve güç tasarrufu modunda çalışmaz. Yeni dosyalar bir sonraki yenilemeden sonra görünür.</string>
     <string name="settings_file_index_folders_title">İndekslenen klasörler</string>
     <string name="settings_file_index_folders_summary_format">%1$d klasör, %2$d ad</string>
     <string name="settings_file_index_rebuild_title">İndeksi şimdi yeniden oluştur</string>
@@ -898,6 +898,22 @@
     <string name="settings_file_index_diagnostics_copy">Kopyala</string>
     <string name="settings_file_index_diagnostics_synthetic">Sentetik test</string>
     <string name="file_list_subtitle_from_index">indeksten</string>
+    <string name="file_index_auto_title">Otomatik indeksleme</string>
+    <string name="settings_file_index_auto_open_title">Uygulama açılırken</string>
+    <string name="settings_file_index_auto_open_summary">Uygulamayı her açtığında indeks yenilenir (15 dakika içinde tekrar yenilenmez).</string>
+    <string name="settings_file_index_auto_interval_title">Düzenli aralıklarla</string>
+    <string-array name="settings_file_index_auto_interval_entries">
+        <item>Kapalı</item>
+        <item>Her saat</item>
+        <item>2 saatte bir</item>
+        <item>4 saatte bir</item>
+        <item>8 saatte bir</item>
+        <item>12 saatte bir</item>
+        <item>24 saatte bir</item>
+    </string-array>
+    <string name="settings_file_index_auto_charging_title">Şarjdayken veya yuvadayken</string>
+    <string name="settings_file_index_auto_charging_summary">Telefon şarja takılınca veya yuvaya konunca, en fazla 6 saatte bir indeks yenilenir.</string>
+    <string name="file_index_toast_done_format">İndeksleme tamamlandı: %1$d kayıt</string>
     <string name="settings_file_index_log_title">İndeks günlüğü</string>
     <string name="settings_file_index_log_summary">Her tarama ve aramanın ayrıntıları, sorunları bulmak için</string>
     <string name="settings_file_index_log_share">Paylaş</string>

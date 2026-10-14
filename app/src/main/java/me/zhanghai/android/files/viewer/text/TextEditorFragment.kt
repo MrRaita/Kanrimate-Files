@@ -491,17 +491,35 @@ class TextEditorFragment : Fragment(), ConfirmReloadDialogFragment.Listener,
     private fun updateSearchCount() {
         if (!this::binding.isInitialized) return
         val label = binding.searchBar.searchBarCount
-        if (currentSearchQuery().isEmpty()) {
+        val query = currentSearchQuery()
+        if (query.isEmpty()) {
             label.text = ""
             return
         }
-        val count = searcherInt("getMatchedPositionCount")
-        if (count == null) {
-            label.text = ""
-            return
-        }
-        val index = searcherInt("getCurrentMatchedPositionIndex") ?: -1
-        label.text = "${if (index >= 0) index + 1 else 0}/$count"
+        // The library's own counter was not reliable (it is read reflectively and may be empty
+        // while its background search runs), so the matches are counted here directly, with the
+        // same case-insensitive rule the search uses. A snapshot keeps the editor untouched.
+        val text = binding.textEdit.text.toString()
+        val cursor = binding.textEdit.cursor
+        val cursorLeft = cursor.left
+        val hasSelection = cursor.isSelected
+        Thread {
+            var total = 0
+            var current = 0
+            var from = 0
+            while (true) {
+                val found = text.indexOf(query, from, ignoreCase = true)
+                if (found < 0) break
+                total++
+                if (hasSelection && found <= cursorLeft) current = total
+                from = found + query.length.coerceAtLeast(1)
+            }
+            label.post {
+                if (this::binding.isInitialized && currentSearchQuery() == query) {
+                    label.text = "$current/$total"
+                }
+            }
+        }.start()
     }
 
     // The counter accessors are read reflectively so a different Sora version can never break the build.
