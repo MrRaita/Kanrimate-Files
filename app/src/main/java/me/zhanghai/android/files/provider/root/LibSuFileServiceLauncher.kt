@@ -46,9 +46,15 @@ object LibSuFileServiceLauncher {
     fun isSuAvailable(): Boolean =
         // @see com.topjohnwu.superuser.Shell.rootAccess
         try {
-            // The process is only needed to see that "su" can be started; don't leak it.
-            Runtime.getRuntime().exec("su --version").destroy()
-            true
+            // An absolute path, so the PATH variable cannot decide which program runs.
+            val su = SuBinary.find()
+            if (su == null) {
+                false
+            } else {
+                // The process is only needed to see that su can be started; don't leak it.
+                Runtime.getRuntime().exec(arrayOf(su, "--version")).destroy()
+                true
+            }
         } catch (e: IOException) {
             // java.io.IOException: Cannot run program "su": error=2, No such file or directory
             false
