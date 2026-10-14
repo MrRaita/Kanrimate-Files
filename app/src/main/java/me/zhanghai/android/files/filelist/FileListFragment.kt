@@ -742,7 +742,14 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         when {
             stateful is Failure -> binding.toolbar.setSubtitle(R.string.error)
             stateful is Loading && !isSearching -> binding.toolbar.setSubtitle(R.string.loading)
-            else -> binding.toolbar.subtitle = getSubtitle(files!!)
+            else -> {
+                var subtitle = getSubtitle(files!!)
+                if (isSearching && viewModel.searchFromIndex) {
+                    subtitle += getString(R.string.file_list_subtitle_separator) +
+                        getString(R.string.file_list_subtitle_from_index)
+                }
+                binding.toolbar.subtitle = subtitle
+            }
         }
         val hasFiles = !files.isNullOrEmpty()
         binding.swipeRefreshLayout.isRefreshing = stateful is Loading && (hasFiles || isSearching)

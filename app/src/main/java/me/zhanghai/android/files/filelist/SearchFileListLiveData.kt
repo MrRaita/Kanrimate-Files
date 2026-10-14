@@ -30,6 +30,11 @@ class SearchFileListLiveData(
 ) : CloseableLiveData<Stateful<List<FileItem>>>() {
     private var future: Future<Unit>? = null
 
+    /** Whether the current results come from the file name index rather than a folder walk. */
+    @Volatile
+    var fromIndex = false
+        private set
+
     init {
         loadValue()
     }
@@ -37,6 +42,7 @@ class SearchFileListLiveData(
     fun loadValue() {
         future?.cancel(true)
         value = Loading(emptyList())
+        fromIndex = false
         future = AppExecutors.io.submit<Unit> {
             val fileList = mutableListOf<FileItem>()
             try {
@@ -48,6 +54,7 @@ class SearchFileListLiveData(
                     }
                 val indexedPaths = indexResult?.paths
                 if (indexedPaths != null) {
+                    fromIndex = true
                     for ((index, indexedPath) in indexedPaths.withIndex()) {
                         if (Thread.currentThread().isInterrupted) {
                             return@submit

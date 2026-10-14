@@ -897,6 +897,12 @@
     <string name="settings_file_index_diagnostics_run">Testi çalıştır</string>
     <string name="settings_file_index_diagnostics_copy">Kopyala</string>
     <string name="settings_file_index_diagnostics_synthetic">Sentetik test</string>
+    <string name="file_list_subtitle_from_index">indeksten</string>
+    <string name="settings_file_index_log_title">İndeks günlüğü</string>
+    <string name="settings_file_index_log_summary">Her tarama ve aramanın ayrıntıları, sorunları bulmak için</string>
+    <string name="settings_file_index_log_share">Paylaş</string>
+    <string name="settings_file_index_log_clear">Temizle</string>
+    <string name="settings_file_index_log_empty">Günlük boş. Önce bir tarama çalıştır.</string>
     <string name="settings_file_index_advanced_title">Tarama kapsamı</string>
     <string name="settings_file_index_advanced_summary">Shizuku/root ile Android/data ve root dizinleri</string>
     <string name="file_index_options_title">Tam tarama seçenekleri</string>

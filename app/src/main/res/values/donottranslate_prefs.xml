@@ -91,6 +91,7 @@
     <string name="pref_key_file_index_advanced">key_file_index_advanced</string>
     <string name="pref_key_file_index_folders">key_file_index_folders</string>
     <string name="pref_key_file_index_diagnostics">key_file_index_diagnostics</string>
+    <string name="pref_key_file_index_log">key_file_index_log</string>
     <string name="pref_key_file_index_rebuild">key_file_index_rebuild</string>
     <string name="pref_key_archive_invalid_char_mode">key_archive_invalid_char_mode</string>
     <string name="pref_default_value_archive_invalid_char_mode">lookalike</string>

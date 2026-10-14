@@ -28,6 +28,7 @@ object IndexDiagnosticsDialog {
         val handler = Handler(Looper.getMainLooper())
         val lines = mutableListOf<String>()
         fun append(line: String) {
+            IndexLog.log("diagnostics: $line")
             handler.post {
                 lines += line
                 text.text = lines.joinToString("\n")

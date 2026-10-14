@@ -168,6 +168,9 @@ object FileIndex {
         val current = getRoots()
         val remove = current.filter { isManagedRoot(it) && it !in desired }
         val add = desired.filter { it !in current }
+        if (remove.isNotEmpty() || add.isNotEmpty()) {
+            IndexLog.log("applyScope: removing $remove, adding $add")
+        }
         removeRoots(remove)
         for (root in add) {
             addRoot(root)
@@ -303,6 +306,7 @@ object FileIndex {
 
     /** @param force ignore the battery and power saving checks (user asked for it) */
     fun startScan(force: Boolean) {
+        IndexLog.log("startScan requested (force=$force, scanning=${scanning.get()})")
         if (!scanning.compareAndSet(false, true)) {
             // A scan is still winding down (for example it was just cancelled): run again after.
             rescanForce = rescanForce || force
@@ -326,6 +330,7 @@ object FileIndex {
                 }
             } catch (e: Throwable) {
                 e.printStackTrace()
+                IndexLog.log("scan thread crashed", e)
             } finally {
                 scanning.set(false)
             }
@@ -365,7 +370,10 @@ object FileIndex {
     private fun scanAllRoots(force: Boolean) {
         val db = database()
         val roots = getRoots()
+        val scanStart = System.currentTimeMillis()
+        logScanHeader(force, roots)
         if (roots.isEmpty()) {
+            IndexLog.log("scan: no roots, nothing to do")
             return
         }
         var total = 0
@@ -382,12 +390,17 @@ object FileIndex {
         for (root in roots.sortedBy { if (needsRoot(it)) 2 else if (isAppDataRoot(it)) 1 else 0 }) {
             if (cancelRequested || !canScanNow(force)) {
                 aborted = true
+                IndexLog.log(
+                    "scan: stopped before $root (cancel=$cancelRequested, " +
+                        "canScanNow=${canScanNow(force)})"
+                )
                 break
             }
             val elevated = needsRoot(root)
             // A background refresh never asks for Shizuku/root permission for a root that has
             // not been scanned successfully before; that only happens when the user starts it.
             if (!force && (elevated || isAppDataRoot(root)) && root !in scannedBefore) {
+                IndexLog.log("root $root: skipped (background refresh, never scanned before)")
                 continue
             }
             val scanId = System.currentTimeMillis()
@@ -397,6 +410,7 @@ object FileIndex {
                 if (elevated) rootTotal += it else normalTotal += it
                 FileIndexNotification.showProgress(total, estimatedTotal)
             }
+            IndexLog.log("root $root: outcome=$outcome")
             when (outcome) {
                 Outcome.DONE -> {
                     try {
@@ -433,11 +447,37 @@ object FileIndex {
             }
         }
         refreshRootsCache()
+        IndexLog.log(
+            "scan: finished in ${System.currentTimeMillis() - scanStart} ms, new entries=$total " +
+                "(normal $normalTotal, elevated $rootTotal), aborted=$aborted, failed roots=$failed, " +
+                "entries in database now=${getEntryCount()}, " +
+                "database file=${database().path?.let { File(it).length() / 1024 } ?: -1} KB"
+        )
         if (aborted) {
             FileIndexNotification.cancel()
         } else {
             FileIndexNotification.showDone(total, failed)
         }
+    }
+
+    private fun logScanHeader(force: Boolean, roots: List<String>) {
+        val battery = application.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val level = battery?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
+        val plugged = (battery?.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) ?: 0) != 0
+        val freeMb = try {
+            application.filesDir.usableSpace / 1024 / 1024
+        } catch (e: Exception) {
+            -1L
+        }
+        IndexLog.log("==== scan start: force=$force, roots=$roots")
+        IndexLog.log(
+            "scan: enabled=${Settings.FILE_INDEX_ENABLED.valueCompat}, " +
+                "appData=${Settings.FILE_INDEX_APP_DATA.valueCompat}, " +
+                "rootMask=${Settings.FILE_INDEX_ROOT_MASK.valueCompat}, " +
+                "rootStrategy=${Settings.ROOT_STRATEGY.valueCompat}, " +
+                "battery=$level% plugged=$plugged, powerSave=${powerManager.isPowerSaveMode}, " +
+                "free=$freeMb MB, entries before=${getEntryCount()}"
+        )
     }
 
     private fun isSymbolicLink(file: File): Boolean =
@@ -470,6 +510,44 @@ object FileIndex {
         private var inserted = 0
         private var inBatch = 0
         private var batches = 0
+        private val startedAt = System.currentTimeMillis()
+        private val topCounts = HashMap<String, Int>()
+        private val firstPaths = ArrayList<String>()
+        private val skippedSamples = ArrayList<String>()
+
+        val count: Int
+            get() = inserted
+
+        /** The entry cap was reached, so the index of this root is cut short. */
+        var capped = false
+            private set
+
+        /** Folders that could not be listed. */
+        var skipped = 0
+            private set
+
+        var abortReason: String? = null
+            private set
+
+        /** Notes a folder that could not be read (only the first few are kept for the log). */
+        fun skip(path: String) {
+            skipped++
+            if (skippedSamples.size < 8) {
+                skippedSamples += path
+            }
+        }
+
+        private fun topKey(path: String): String {
+            val relative = if (root == "/") path.removePrefix("/") else path.removePrefix(root).trimStart('/')
+            val first = relative.substringBefore('/')
+            if (!relative.contains('/')) {
+                return "(top level)"
+            }
+            if (root == "/" && first == "data") {
+                return "/data/" + relative.substringAfter('/').substringBefore('/')
+            }
+            return if (root == "/") "/$first" else first
+        }
 
         /** Stopped because of cancel, low battery or an interrupt. */
         var aborted = false
@@ -483,10 +561,12 @@ object FileIndex {
         fun add(path: String, name: String): Boolean {
             if (cancelRequested || Thread.currentThread().isInterrupted) {
                 aborted = true
+                abortReason = if (cancelRequested) "cancel requested" else "thread interrupted"
                 return false
             }
             if (inserted >= budget) {
                 // The cap was reached: keep what we have as a complete (if truncated) index.
+                capped = true
                 return false
             }
             statement.clearBindings()
@@ -497,6 +577,11 @@ object FileIndex {
             statement.executeInsert()
             inserted++
             inBatch++
+            if (firstPaths.size < 5) {
+                firstPaths += path
+            }
+            val key = topKey(path)
+            topCounts[key] = (topCounts[key] ?: 0) + 1
             if (inBatch >= BATCH_SIZE) {
                 db.setTransactionSuccessful()
                 db.endTransaction()
@@ -505,6 +590,7 @@ object FileIndex {
                 batches++
                 if (batches % BATTERY_CHECK_EVERY_BATCHES == 0 && !canScanNow(force)) {
                     aborted = true
+                    abortReason = "battery, power saving or free space check failed"
                     return false
                 }
                 try {
@@ -512,6 +598,7 @@ object FileIndex {
                     Thread.sleep(5)
                 } catch (e: InterruptedException) {
                     aborted = true
+                    abortReason = "interrupted while sleeping"
                     return false
                 }
                 db.beginTransaction()
@@ -526,6 +613,16 @@ object FileIndex {
             }
             onInserted(inBatch)
             inBatch = 0
+            val top = topCounts.entries.sortedByDescending { it.value }.take(25)
+                .joinToString { it.key + "=" + it.value }
+            IndexLog.log(
+                "  sink $root: $inserted entries in ${System.currentTimeMillis() - startedAt} ms, " +
+                    "capped=$capped (budget $budget), aborted=$aborted" +
+                    (abortReason?.let { " ($it)" } ?: "") + ", unreadable folders=$skipped" +
+                    (if (skippedSamples.isEmpty()) "" else " e.g. " + skippedSamples.joinToString(" | "))
+            )
+            IndexLog.log("  first entries: " + firstPaths.joinToString(" | "))
+            IndexLog.log("  by top folder: $top")
         }
     }
 
@@ -538,19 +635,31 @@ object FileIndex {
         onInserted: (Int) -> Unit
     ): Outcome {
         val sink = Sink(db, root, scanId, budget, force, onInserted)
+        val method = when {
+            needsRoot(root) -> "root find (fallback: file layer)"
+            isAppDataRoot(root) -> "file layer (Shizuku/root strategy)"
+            else -> "plain java.io walk"
+        }
+        IndexLog.log("root $root: start, method=$method, budget=$budget, elevated=${needsRoot(root)}")
         val readable = try {
             when {
                 needsRoot(root) ->
-                    walkWithRootFind(root, sink) || (root != "/" && walkFileLayer(root, sink))
+                    walkWithRootFind(root, sink) ||
+                        (root != "/" && run {
+                            IndexLog.log("  root find gave nothing, trying the file layer")
+                            walkFileLayer(root, sink)
+                        })
                 isAppDataRoot(root) -> walkFileLayer(root, sink)
                 else -> walkFile(File(root), sink)
             }
         } catch (e: Exception) {
             e.printStackTrace()
+            IndexLog.log("  walk threw", e)
             false
         } finally {
             sink.close()
         }
+        IndexLog.log("root $root: readable=$readable")
         return when {
             sink.aborted -> Outcome.ABORTED
             readable -> Outcome.DONE
@@ -566,7 +675,12 @@ object FileIndex {
         val stack = ArrayDeque<File>()
         stack.addLast(rootFile)
         while (stack.isNotEmpty()) {
-            val children = stack.removeLast().listFiles() ?: continue
+            val directory = stack.removeLast()
+            val children = directory.listFiles()
+            if (children == null) {
+                sink.skip(directory.path)
+                continue
+            }
             for (child in children) {
                 if (!sink.add(child.path, child.name)) {
                     return true
@@ -614,9 +728,11 @@ object FileIndex {
                 }
             } catch (e: Exception) {
                 if (first) {
+                    IndexLog.log("  file layer cannot open top folder $rootPath", e)
                     return false
                 }
                 // A folder we may not read (or that vanished): skip it.
+                sink.skip(directory.toString())
             }
         }
         return true
@@ -645,17 +761,42 @@ object FileIndex {
      */
     private fun walkWithRootFind(root: String, sink: Sink): Boolean {
         val command = findCommand(root)
-        val su = SuBinary.find() ?: return false
+        val su = SuBinary.find()
+        if (su == null) {
+            IndexLog.log("  no su binary found")
+            return false
+        }
+        IndexLog.log("  su=$su, command: $command")
         val attempts = listOf(
             arrayOf(su, "--mount-master", "-c", command),
             arrayOf(su, "-c", command)
         )
         for (arguments in attempts) {
+            val label = if (arguments.contains("--mount-master")) "mount-master" else "plain su"
+            val attemptStart = System.currentTimeMillis()
             val process = try {
                 Runtime.getRuntime().exec(arguments)
             } catch (e: IOException) {
+                IndexLog.log("  [$label] cannot start su", e)
                 return false
             }
+            val errors = StringBuffer()
+            val errorReader = Thread({
+                try {
+                    process.errorStream.bufferedReader().useLines { lines ->
+                        for (line in lines) {
+                            if (errors.length < 600) {
+                                errors.append(line).append(" / ")
+                            }
+                        }
+                    }
+                } catch (e: IOException) {
+                    // The process was destroyed.
+                }
+            }, "FileIndex.SuErr")
+            errorReader.isDaemon = true
+            errorReader.start()
+            var endedNaturally = false
             var lines = 0
             // Reading blocks while su waits for the user's permission answer, so something else
             // has to be able to stop the process when the scan is cancelled.
@@ -679,7 +820,11 @@ object FileIndex {
                 process.outputStream.close()
                 process.inputStream.bufferedReader().use { reader ->
                     while (true) {
-                        val line = reader.readLine() ?: break
+                        val line = reader.readLine()
+                        if (line == null) {
+                            endedNaturally = true
+                            break
+                        }
                         if (line.isEmpty() || line == root) {
                             continue
                         }
@@ -695,6 +840,19 @@ object FileIndex {
                 // Closing the pipe makes find stop at its next write.
                 process.destroy()
             }
+            val exit = if (endedNaturally) {
+                try {
+                    process.waitFor().toString()
+                } catch (e: InterruptedException) {
+                    "?"
+                }
+            } else {
+                "not finished (stopped early)"
+            }
+            IndexLog.log(
+                "  [$label] $lines lines in ${System.currentTimeMillis() - attemptStart} ms, " +
+                    "exit=$exit, stderr=" + errors.toString().ifEmpty { "(none)" }
+            )
             if (lines > 0 || sink.aborted) {
                 return true
             }
@@ -716,6 +874,7 @@ object FileIndex {
             return SearchResult(null)
         }
         val root = normalizeRoot(searchRoot)
+        val searchStart = System.currentTimeMillis()
         try {
             val db = database()
             val indexedRoots = mutableListOf<String>()
@@ -728,6 +887,7 @@ object FileIndex {
             // otherwise (only if the user allowed it) the indexed folders below it.
             val searchFolders = selectFolders(root, indexedRoots)
             if (searchFolders.isEmpty()) {
+                IndexLog.log("search in $root (query length ${query.length}): index cannot answer, walking the tree")
                 return SearchResult(null)
             }
             val folded = fold(query)
@@ -750,9 +910,14 @@ object FileIndex {
                     }
                 }
             }
+            IndexLog.log(
+                "search in $root (query length ${query.length}): ${results.size} results from index " +
+                    "folders $searchFolders in ${System.currentTimeMillis() - searchStart} ms"
+            )
             return SearchResult(results.toList())
         } catch (e: Exception) {
             e.printStackTrace()
+            IndexLog.log("search in $root failed", e)
             return SearchResult(null, failed = true)
         }
     }

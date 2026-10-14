@@ -14,6 +14,7 @@ import me.zhanghai.android.files.fileindex.FileIndex
 import me.zhanghai.android.files.filelist.FileMarks
 import me.zhanghai.android.files.fileindex.FileIndexPrompt
 import me.zhanghai.android.files.fileindex.IndexDiagnosticsDialog
+import me.zhanghai.android.files.fileindex.IndexLogDialog
 import me.zhanghai.android.files.filelist.FileListActivity
 import me.zhanghai.android.files.provider.linux.isLinuxPath
 import me.zhanghai.android.files.util.AppExecutors
@@ -96,6 +97,12 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
             getString(R.string.pref_key_file_index_diagnostics)
         )!!.setOnPreferenceClickListener {
             IndexDiagnosticsDialog.show(requireContext())
+            true
+        }
+        preferenceScreen.findPreference<Preference>(
+            getString(R.string.pref_key_file_index_log)
+        )!!.setOnPreferenceClickListener {
+            IndexLogDialog.show(requireContext())
             true
         }
         updateFileIndexSummary()

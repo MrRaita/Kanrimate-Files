@@ -75,6 +75,10 @@ class FileListViewModel : ViewModel() {
     val fileListStateful: Stateful<List<FileItem>>
         get() = _fileListLiveData.valueCompat
 
+    /** Whether the search results on screen were read from the file name index. */
+    val searchFromIndex: Boolean
+        get() = _fileListLiveData.searchFromIndex
+
     fun reload() {
         val path = currentPath
         if (path.isArchivePath) {
@@ -274,6 +278,9 @@ class FileListViewModel : ViewModel() {
             this.liveData = liveData
             addSource(liveData) { value = it }
         }
+
+        val searchFromIndex: Boolean
+            get() = (liveData as? SearchFileListLiveData)?.fromIndex == true
 
         fun reload() {
             when (val liveData = liveData) {

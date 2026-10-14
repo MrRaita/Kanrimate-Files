@@ -1047,6 +1047,12 @@
     <string name="settings_file_index_diagnostics_run">Run test</string>
     <string name="settings_file_index_diagnostics_copy">Copy</string>
     <string name="settings_file_index_diagnostics_synthetic">Synthetic test</string>
+    <string name="file_list_subtitle_from_index">from index</string>
+    <string name="settings_file_index_log_title">Index log</string>
+    <string name="settings_file_index_log_summary">Details of every scan and search, for finding problems</string>
+    <string name="settings_file_index_log_share">Share</string>
+    <string name="settings_file_index_log_clear">Clear</string>
+    <string name="settings_file_index_log_empty">The log is empty. Run a scan first.</string>
     <string name="settings_file_index_advanced_title">Scan scope</string>
     <string name="settings_file_index_advanced_summary">Android/data via Shizuku/root and root folders</string>
     <string name="file_index_options_title">Full scan options</string>

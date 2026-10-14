@@ -211,6 +211,11 @@
             android:title="@string/settings_file_index_diagnostics_title" />
 
         <Preference
+            android:key="@string/pref_key_file_index_log"
+            android:title="@string/settings_file_index_log_title"
+            android:summary="@string/settings_file_index_log_summary" />
+
+        <Preference
             android:key="@string/pref_key_file_index_rebuild"
             android:title="@string/settings_file_index_rebuild_title"
             android:dependency="@string/pref_key_file_index_enabled" />
