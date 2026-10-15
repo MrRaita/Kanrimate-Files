@@ -733,7 +733,7 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
             val enoughRoom = (bottom - top) - v.paddingTop - v.paddingBottom >
                 (360 * resources.displayMetrics.density)
             TextViewCompat.setCompoundDrawablesRelativeWithIntrinsicBounds(
-                binding.emptyView, null, if (enoughRoom) emptyIcon else null, null, null
+                binding.root.findViewById<TextView>(R.id.emptyView), null, if (enoughRoom) emptyIcon else null, null, null
             )
             TextViewCompat.setCompoundDrawablesRelativeWithIntrinsicBounds(
                 binding.errorText, null, if (enoughRoom) errorIcon else null, null, null
@@ -789,12 +789,12 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         // The toolbar shows the search field while searching, so the subtitle is invisible then;
         // the source of the results is shown in its own line under the breadcrumbs.
         if (isSearching && stateful !is Failure && files != null && viewModel.searchFromIndex) {
-            binding.searchSourceText.text = getSubtitle(files) +
+            binding.root.findViewById<TextView>(R.id.searchSourceText).text = getSubtitle(files) +
                 getString(R.string.file_list_subtitle_separator) +
                 getString(R.string.file_list_subtitle_from_index)
-            binding.searchSourceText.isVisible = true
+            binding.root.findViewById<TextView>(R.id.searchSourceText).isVisible = true
         } else {
-            binding.searchSourceText.isVisible = false
+            binding.root.findViewById<TextView>(R.id.searchSourceText).isVisible = false
         }
         val hasFiles = !files.isNullOrEmpty()
         binding.swipeRefreshLayout.isRefreshing = stateful is Loading && (hasFiles || isSearching)
