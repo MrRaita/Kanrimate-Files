@@ -131,6 +131,7 @@ import me.zhanghai.android.files.util.extraPath
 import me.zhanghai.android.files.util.extraPathList
 import me.zhanghai.android.files.util.fadeToVisibilityUnsafe
 import me.zhanghai.android.files.util.getDimensionDp
+import me.zhanghai.android.files.util.isImeVisibleCompat
 import me.zhanghai.android.files.util.getQuantityString
 import me.zhanghai.android.files.util.hasSw600Dp
 import me.zhanghai.android.files.util.isOrientationLandscape
@@ -309,11 +310,12 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
         searchBackCallback = object : OnBackPressedCallback(false) {
             override fun handleOnBackPressed() {
                 val searchView = menuBinding.searchItem.actionView as? SearchView
-                val imeVisible = ViewCompat.getRootWindowInsets(binding.root)
-                    ?.isVisible(WindowInsetsCompat.Type.ime()) == true
-                if (imeVisible && searchView != null) {
-                    // clearFocus() also hides the keyboard.
+                if (searchView != null && searchView.isImeVisibleCompat()) {
+                    // Hide only the keyboard; the next Back leaves the search.
                     searchView.clearFocus()
+                    val imm = requireContext()
+                        .getSystemService(android.view.inputmethod.InputMethodManager::class.java)
+                    imm?.hideSoftInputFromWindow(searchView.windowToken, 0)
                 } else {
                     collapseSearchView()
                 }
@@ -729,16 +731,25 @@ class FileListFragment : Fragment(), BreadcrumbLayout.Listener, FileListAdapter.
     private fun setUpEmptyViewFitting() {
         val emptyIcon = ContextCompat.getDrawable(requireContext(), R.drawable.file_icon_240dp)
         val errorIcon = ContextCompat.getDrawable(requireContext(), R.drawable.error_icon_240dp)
-        binding.contentLayout.addOnLayoutChangeListener { v, _, top, _, bottom, _, _, _, _ ->
-            val enoughRoom = (bottom - top) - v.paddingTop - v.paddingBottom >
-                (360 * resources.displayMetrics.density)
-            TextViewCompat.setCompoundDrawablesRelativeWithIntrinsicBounds(
-                binding.root.findViewById<TextView>(R.id.emptyView), null, if (enoughRoom) emptyIcon else null, null, null
-            )
-            TextViewCompat.setCompoundDrawablesRelativeWithIntrinsicBounds(
-                binding.errorText, null, if (enoughRoom) errorIcon else null, null, null
-            )
+        val emptyText = binding.root.findViewById<TextView>(R.id.emptyView)
+        val errorText = binding.root.findViewById<TextView>(R.id.errorText)
+        var lastEnoughRoom: Boolean? = null
+        val update = {
+            val enoughRoom = !binding.root.isImeVisibleCompat() &&
+                binding.contentLayout.height - binding.contentLayout.paddingTop -
+                binding.contentLayout.paddingBottom > (360 * resources.displayMetrics.density)
+            if (enoughRoom != lastEnoughRoom) {
+                lastEnoughRoom = enoughRoom
+                TextViewCompat.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                    emptyText, null, if (enoughRoom) emptyIcon else null, null, null
+                )
+                TextViewCompat.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                    errorText, null, if (enoughRoom) errorIcon else null, null, null
+                )
+            }
         }
+        binding.root.viewTreeObserver.addOnGlobalLayoutListener { update() }
+        update()
     }
 
     private var isNavigatingToExistingParent = false

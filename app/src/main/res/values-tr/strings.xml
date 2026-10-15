@@ -958,4 +958,11 @@
     <string name="recent_empty">Henüz bir şey yok. Açtığın dosyalar ve gezdiğin klasörler burada görünür.</string>
     <string name="recent_clear">Geçmişi temizle</string>
     <string name="file_index_options_strategy_note">Uygulamadaki root erişim ayarı \"Hiçbir zaman\" ise \"Otomatik\" olarak değiştirilir.</string>
+    <string name="settings_category_appearance">Görünüm</string>
+    <string name="settings_category_file_list">Dosya listesi</string>
+    <string name="settings_category_storage">Klasörler ve depolama</string>
+    <string name="settings_category_editors">Düzenleyiciler</string>
+    <string name="settings_category_archives">Arşivler ve uygulamalar</string>
+    <string name="settings_category_index_frequency">İndeksleme sıklığı</string>
+    <string name="settings_category_index_tools">İndeks araçları</string>
 </resources>

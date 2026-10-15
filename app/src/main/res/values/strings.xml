@@ -1108,4 +1108,11 @@
     <string name="recent_empty">Nothing yet. Files you open and folders you visit show up here.</string>
     <string name="recent_clear">Clear history</string>
     <string name="file_index_options_strategy_note">If the app\'s root access setting is set to \"Never\", it is changed to \"Automatic\".</string>
+    <string name="settings_category_appearance">Appearance</string>
+    <string name="settings_category_file_list">File list</string>
+    <string name="settings_category_storage">Folders and storage</string>
+    <string name="settings_category_editors">Editors</string>
+    <string name="settings_category_archives">Archives and apps</string>
+    <string name="settings_category_index_frequency">Indexing frequency</string>
+    <string name="settings_category_index_tools">Index tools</string>
 </resources>

@@ -9,7 +9,7 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <PreferenceCategory android:title="@string/settings_interface_title">
+    <PreferenceCategory android:title="@string/settings_category_appearance">
 
         <me.zhanghai.android.files.settings.LocalePreference
             android:key="@string/pref_key_locale"
@@ -45,22 +45,9 @@
             android:key="@string/pref_key_file_list_animation"
             android:title="@string/settings_file_list_animation_title"
             android:defaultValue="@bool/pref_default_value_file_list_animation" />
+    </PreferenceCategory>
 
-        <rikka.preference.SimpleMenuPreference
-            android:key="@string/pref_key_file_name_ellipsize"
-            android:title="@string/settings_file_name_ellipsize_title"
-            android:defaultValue="@string/pref_default_value_file_name_ellipsize"
-            android:entries="@array/settings_file_name_ellipsize_entries"
-            android:entryValues="@array/pref_entry_values_file_name_ellipsize"
-            app:useSimpleSummaryProvider="true" />
-
-        <rikka.preference.SimpleMenuPreference
-            android:key="@string/pref_key_archive_invalid_char_mode"
-            android:title="@string/settings_archive_invalid_char_mode_title"
-            android:defaultValue="@string/pref_default_value_archive_invalid_char_mode"
-            android:entries="@array/settings_archive_invalid_char_mode_entries"
-            android:entryValues="@array/pref_entry_values_archive_invalid_char_mode"
-            app:useSimpleSummaryProvider="true" />
+    <PreferenceCategory android:title="@string/settings_category_file_list">
 
         <rikka.preference.SimpleMenuPreference
             android:key="@string/pref_key_file_list_density"
@@ -78,14 +65,43 @@
             android:entryValues="@array/pref_entry_values_file_list_grid_columns"
             app:useSimpleSummaryProvider="true" />
 
+        <rikka.preference.SimpleMenuPreference
+            android:key="@string/pref_key_file_name_ellipsize"
+            android:title="@string/settings_file_name_ellipsize_title"
+            android:defaultValue="@string/pref_default_value_file_name_ellipsize"
+            android:entries="@array/settings_file_name_ellipsize_entries"
+            android:entryValues="@array/pref_entry_values_file_name_ellipsize"
+            app:useSimpleSummaryProvider="true" />
+
         <SwitchPreferenceCompat
             android:key="@string/pref_key_file_size_binary"
             android:title="@string/settings_file_size_binary_title"
             android:summary="@string/settings_file_size_binary_summary"
             android:defaultValue="@bool/pref_default_value_file_size_binary" />
+
+        <SwitchPreferenceCompat
+            android:key="@string/pref_key_show_pdf_thumbnail_pre_28"
+            android:title="@string/settings_show_pdf_thumbnail_pre_28_title"
+            android:defaultValue="@bool/pref_default_value_show_pdf_thumbnail_pre_28"
+            android:summary="@string/settings_show_pdf_thumbnail_pre_28_summary"
+            app:isPreferenceVisible="@bool/pref_visible_show_pdf_thumbnail_pre_28" />
+
+        <SwitchPreferenceCompat
+            android:key="@string/pref_key_read_remote_files_for_thumbnail"
+            android:title="@string/settings_read_remote_files_for_thumbnail_title"
+            android:defaultValue="@bool/pref_default_value_read_remote_files_for_thumbnail" />
+
+        <me.zhanghai.android.files.settings.SelectionActionsSettingsPreference
+            android:title="@string/settings_selection_actions_title"
+            android:summary="@string/settings_selection_actions_summary" />
+
+        <Preference
+            android:key="@string/pref_key_hidden_items"
+            android:title="@string/settings_hidden_items_title"
+            android:summary="@string/settings_hidden_items_summary" />
     </PreferenceCategory>
 
-    <PreferenceCategory android:title="@string/settings_behavior_title">
+    <PreferenceCategory android:title="@string/settings_category_storage">
 
         <me.zhanghai.android.files.settings.DefaultDirectoryPreference
             android:key="@string/pref_key_file_list_default_directory"
@@ -100,18 +116,6 @@
             android:title="@string/settings_standard_directories_title"
             android:summary="@string/settings_standard_directories_summary_empty" />
 
-        <me.zhanghai.android.files.settings.CodeEditorSettingsPreference
-            android:title="@string/settings_code_editor_title"
-            android:summary="@string/settings_code_editor_summary" />
-
-        <me.zhanghai.android.files.settings.TextEditorSettingsPreference
-            android:title="@string/settings_text_editor_title"
-            android:summary="@string/settings_text_editor_summary" />
-
-        <me.zhanghai.android.files.settings.SelectionActionsSettingsPreference
-            android:title="@string/settings_selection_actions_title"
-            android:summary="@string/settings_selection_actions_summary" />
-
         <me.zhanghai.android.files.settings.BookmarkDirectoriesPreference
             android:title="@string/settings_bookmark_directories_title"
             android:summary="@string/settings_bookmark_directories_summary_empty" />
@@ -122,6 +126,28 @@
             android:defaultValue="@string/pref_default_value_root_strategy"
             android:entries="@array/settings_root_strategy_entries"
             android:entryValues="@array/pref_entry_values_root_strategy"
+            app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/settings_category_editors">
+
+        <me.zhanghai.android.files.settings.CodeEditorSettingsPreference
+            android:title="@string/settings_code_editor_title"
+            android:summary="@string/settings_code_editor_summary" />
+
+        <me.zhanghai.android.files.settings.TextEditorSettingsPreference
+            android:title="@string/settings_text_editor_title"
+            android:summary="@string/settings_text_editor_summary" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/settings_category_archives">
+
+        <rikka.preference.SimpleMenuPreference
+            android:key="@string/pref_key_archive_invalid_char_mode"
+            android:title="@string/settings_archive_invalid_char_mode_title"
+            android:defaultValue="@string/pref_default_value_archive_invalid_char_mode"
+            android:entries="@array/settings_archive_invalid_char_mode_entries"
+            android:entryValues="@array/pref_entry_values_archive_invalid_char_mode"
             app:useSimpleSummaryProvider="true" />
 
         <me.zhanghai.android.files.settings.CharsetPreference
@@ -137,23 +163,6 @@
             android:entries="@array/settings_open_apk_default_action_entries"
             android:entryValues="@array/pref_entry_values_open_apk_default_action"
             app:useSimpleSummaryProvider="true" />
-
-        <SwitchPreferenceCompat
-            android:key="@string/pref_key_show_pdf_thumbnail_pre_28"
-            android:title="@string/settings_show_pdf_thumbnail_pre_28_title"
-            android:defaultValue="@bool/pref_default_value_show_pdf_thumbnail_pre_28"
-            android:summary="@string/settings_show_pdf_thumbnail_pre_28_summary"
-            app:isPreferenceVisible="@bool/pref_visible_show_pdf_thumbnail_pre_28" />
-
-        <SwitchPreferenceCompat
-            android:key="@string/pref_key_read_remote_files_for_thumbnail"
-            android:title="@string/settings_read_remote_files_for_thumbnail_title"
-            android:defaultValue="@bool/pref_default_value_read_remote_files_for_thumbnail" />
-
-        <Preference
-            android:key="@string/pref_key_hidden_items"
-            android:title="@string/settings_hidden_items_title"
-            android:summary="@string/settings_hidden_items_summary" />
     </PreferenceCategory>
 
     <PreferenceCategory android:title="@string/settings_search_return_title">
@@ -206,6 +215,14 @@
             android:summary="@string/settings_file_index_advanced_summary"
             android:dependency="@string/pref_key_file_index_enabled" />
 
+        <Preference
+            android:key="@string/pref_key_file_index_rebuild"
+            android:title="@string/settings_file_index_rebuild_title"
+            android:dependency="@string/pref_key_file_index_enabled" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/settings_category_index_frequency">
+
         <SwitchPreferenceCompat
             android:key="@string/pref_key_file_index_auto_open"
             android:title="@string/settings_file_index_auto_open_title"
@@ -228,6 +245,9 @@
             android:summary="@string/settings_file_index_auto_charging_summary"
             android:defaultValue="@bool/pref_default_value_file_index_auto_charging"
             android:dependency="@string/pref_key_file_index_enabled" />
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="@string/settings_category_index_tools">
 
         <Preference
             android:key="@string/pref_key_file_index_diagnostics"
@@ -237,10 +257,5 @@
             android:key="@string/pref_key_file_index_log"
             android:title="@string/settings_file_index_log_title"
             android:summary="@string/settings_file_index_log_summary" />
-
-        <Preference
-            android:key="@string/pref_key_file_index_rebuild"
-            android:title="@string/settings_file_index_rebuild_title"
-            android:dependency="@string/pref_key_file_index_enabled" />
     </PreferenceCategory>
 </PreferenceScreen>

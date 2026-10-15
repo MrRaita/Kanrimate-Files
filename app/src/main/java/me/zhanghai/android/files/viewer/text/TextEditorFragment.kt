@@ -496,19 +496,18 @@ class TextEditorFragment : Fragment(), ConfirmReloadDialogFragment.Listener,
             label.text = ""
             return
         }
-        // The library's own counter was not reliable (it is read reflectively and may be empty
-        // while its background search runs), so the matches are counted here directly, with the
-        // same case-insensitive rule the search uses. A snapshot keeps the editor untouched.
+        // The library's own counter was not reliable, so the matches are counted here directly,
+        // with the same case-insensitive rule the search uses.
+        label.setTextColor(binding.searchBar.searchBarInput.currentTextColor)
         val text = binding.textEdit.text.toString()
         val cursor = binding.textEdit.cursor
-        // Character offset of the cursor, worked out from its line and column.
         var cursorLeft = 0
         repeat(cursor.leftLine) {
             val newline = text.indexOf('\n', cursorLeft)
             cursorLeft = if (newline < 0) text.length else newline + 1
         }
         cursorLeft += cursor.leftColumn
-        Thread {
+        fun count(): String {
             var total = 0
             var current = 0
             var from = 0
@@ -519,9 +518,18 @@ class TextEditorFragment : Fragment(), ConfirmReloadDialogFragment.Listener,
                 if (found <= cursorLeft) current = total
                 from = found + query.length.coerceAtLeast(1)
             }
+            return "$current/$total"
+        }
+        if (text.length < 500_000) {
+            // Small enough to count right away on the UI thread.
+            label.text = count()
+            return
+        }
+        Thread {
+            val result = try { count() } catch (_: Throwable) { "?" }
             label.post {
                 if (this::binding.isInitialized && currentSearchQuery() == query) {
-                    label.text = "$current/$total"
+                    label.text = result
                 }
             }
         }.start()
