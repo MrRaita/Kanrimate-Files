@@ -26,6 +26,9 @@ object FileIndexScheduler {
 
     private fun scheduler(): JobScheduler? = application.getSystemService(JobScheduler::class.java)
 
+    /** JobScheduler.getPendingJob() needs API 24; this works from API 21. */
+    private fun JobScheduler.pendingJob(id: Int): JobInfo? = allPendingJobs.firstOrNull { it.id == id }
+
     private fun component() = ComponentName(application, FileIndexJobService::class.java)
 
     /** Makes the scheduled jobs match the settings. Call from a background thread. */
@@ -37,7 +40,7 @@ object FileIndexScheduler {
         } else {
             0
         }
-        val pending = scheduler.getPendingJob(PERIODIC_JOB_ID)
+        val pending = scheduler.pendingJob(PERIODIC_JOB_ID)
         if (hours <= 0) {
             if (pending != null) {
                 scheduler.cancel(PERIODIC_JOB_ID)
@@ -55,10 +58,10 @@ object FileIndexScheduler {
             }
         }
         if (enabled && Settings.FILE_INDEX_AUTO_CHARGING.valueCompat) {
-            if (scheduler.getPendingJob(CHARGING_JOB_ID) == null) {
+            if (scheduler.pendingJob(CHARGING_JOB_ID) == null) {
                 scheduleCharging()
             }
-        } else if (scheduler.getPendingJob(CHARGING_JOB_ID) != null) {
+        } else if (scheduler.pendingJob(CHARGING_JOB_ID) != null) {
             scheduler.cancel(CHARGING_JOB_ID)
             IndexLog.log("auto: charging job cancelled")
         }

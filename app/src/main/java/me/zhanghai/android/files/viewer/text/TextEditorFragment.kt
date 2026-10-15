@@ -501,8 +501,13 @@ class TextEditorFragment : Fragment(), ConfirmReloadDialogFragment.Listener,
         // same case-insensitive rule the search uses. A snapshot keeps the editor untouched.
         val text = binding.textEdit.text.toString()
         val cursor = binding.textEdit.cursor
-        val cursorLeft = cursor.left
-        val hasSelection = cursor.isSelected
+        // Character offset of the cursor, worked out from its line and column.
+        var cursorLeft = 0
+        repeat(cursor.leftLine) {
+            val newline = text.indexOf('\n', cursorLeft)
+            cursorLeft = if (newline < 0) text.length else newline + 1
+        }
+        cursorLeft += cursor.leftColumn
         Thread {
             var total = 0
             var current = 0
@@ -511,7 +516,7 @@ class TextEditorFragment : Fragment(), ConfirmReloadDialogFragment.Listener,
                 val found = text.indexOf(query, from, ignoreCase = true)
                 if (found < 0) break
                 total++
-                if (hasSelection && found <= cursorLeft) current = total
+                if (found <= cursorLeft) current = total
                 from = found + query.length.coerceAtLeast(1)
             }
             label.post {
